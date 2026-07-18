@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { requireCustomerAccess, AuthError } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { processCheckout } from '@/lib/rental-logic';
 import { z } from 'zod';
@@ -16,15 +16,17 @@ const checkoutSchema = z.object({
   method: z.string().min(1, 'Payment method is required'),
 });
 
+// Business rule error messages that should return 409 (conflict)
+const BUSINESS_RULE_ERRORS = [
+  'Insufficient stock',
+  'Start date cannot be in the past',
+  'End date cannot be before start date',
+  'Product not found',
+];
+
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
-    if (session.role !== 'CUSTOMER') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const session = await requireCustomerAccess(); // CUSTOMER or ADMIN
 
     const body = await req.json();
     const parsed = checkoutSchema.safeParse(body);
@@ -37,28 +39,27 @@ export async function POST(req: NextRequest) {
 
     const { items, method } = parsed.data;
 
-    // Execute the checkout inside an atomic transaction
+    // Execute the checkout inside an atomic transaction (30s timeout for Neon serverless latency)
     const orderIds = await prisma.$transaction(async (tx) => {
       return await processCheckout(tx, session.userId, items, method);
-    });
+    }, { timeout: 30000 });
 
     return NextResponse.json({ success: true, orderIds });
   } catch (error: unknown) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode });
+    }
     const message = error instanceof Error ? error.message : 'Checkout failed';
     console.error('Checkout error:', message);
-    return NextResponse.json({ error: message }, { status: 409 });
+    // Business rule conflicts (validated in rental-logic) return 409
+    const isBusinessRuleError = BUSINESS_RULE_ERRORS.some(e => message.includes(e));
+    return NextResponse.json({ error: message }, { status: isBusinessRuleError ? 409 : 500 });
   }
 }
 
 export async function GET() {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
-    if (session.role !== 'CUSTOMER') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const session = await requireCustomerAccess(); // CUSTOMER or ADMIN
 
     const orders = await prisma.rentalOrder.findMany({
       where: { customerId: session.userId },
@@ -70,6 +71,9 @@ export async function GET() {
 
     return NextResponse.json(orders);
   } catch (error: unknown) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode });
+    }
     console.error('Fetch orders error:', error);
     return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
   }

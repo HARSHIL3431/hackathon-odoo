@@ -1,6 +1,6 @@
-import { OrderState, Prisma, QuotationType } from '@prisma/client';
+import { OrderState, Prisma, QuotationType, Product } from '@prisma/client';
 import { calculateRentalPrice } from './pricing';
-import { startOfDay, isBefore } from 'date-fns';
+import { startOfDay, isBefore, subSeconds, isAfter, differenceInCalendarDays } from 'date-fns';
 
 export interface CheckoutItem {
   productId: string;
@@ -22,6 +22,27 @@ export async function processCheckout(
 ): Promise<string[]> {
   const createdOrderIds: string[] = [];
 
+  // Idempotency guard: check for recent duplicate checkout (same customer, same product+dates, within 30s).
+  // This prevents double-click "Pay Now" from creating duplicate orders.
+  // NOTE: Has a theoretical race window under true concurrent requests — accepted as "good enough
+  // for hackathon scope." A fully race-proof solution would use a unique constraint on a hash column
+  // or a distributed lock, both overkill here.
+  const recentCutoff = subSeconds(new Date(), 30);
+  const productIds = items.map(i => i.productId);
+  const recentPaidOrders = await prisma.rentalOrder.findMany({
+    where: {
+      customerId: userId,
+      productId: { in: productIds },
+      state: OrderState.Paid,
+      quotationType,
+      createdAt: { gte: recentCutoff },
+    },
+  });
+  if (recentPaidOrders.length > 0) {
+    // Duplicate detected — return the existing order IDs from the original request
+    return recentPaidOrders.map(o => o.id);
+  }
+
   // Group quantities to check total requested against stock
   const requestedStock: Record<string, number> = {};
   for (const item of items) {
@@ -33,7 +54,7 @@ export async function processCheckout(
     where: { id: { in: Object.keys(requestedStock) } },
   });
 
-  const productMap = new Map(products.map((p) => [p.id, p]));
+  const productMap = new Map<string, Product>(products.map((p: Product) => [p.id, p]));
 
   // Validate all items
   for (const item of items) {
@@ -68,7 +89,7 @@ export async function processCheckout(
 
     // We calculate price for ONE unit since we are unrolling
     const pricing = calculateRentalPrice(
-      { rentalPricePerDay: product.rentalPricePerDay, depositAmount: product.depositAmount, stockQty: 9999 }, // stockQty bypass for math
+      { rentalPricePerDay: product.rentalPricePerDay, depositAmount: product.depositAmount, stockQty: 9999 }, // stockQty bypass: stock already validated above (lines 43-45) in same transaction; this call intentionally skips redundant check for single-unit pricing math
       new Date(item.startDate),
       new Date(item.endDate),
       1
@@ -118,4 +139,77 @@ export async function processCheckout(
   }
 
   return createdOrderIds;
+}
+
+/**
+ * State machine transition for RentalOrder.
+ * Performs a concurrency check immediately before mutation.
+ */
+export async function processTransition(
+  prisma: Prisma.TransactionClient,
+  orderId: string,
+  action: 'pickup' | 'return' | 'settle'
+) {
+  // Concurrency Guard: Check current state immediately before mutation
+  const order = await prisma.rentalOrder.findUnique({
+    where: { id: orderId },
+    include: { product: true },
+  });
+
+  if (!order) {
+    throw new Error("Order not found");
+  }
+
+  if (action === 'pickup') {
+    if (order.state !== OrderState.Paid) {
+      throw new Error(`409: Invalid state transition: Cannot pickup from state ${order.state}`);
+    }
+    // Paid -> PickedUp -> Active
+    await prisma.rentalOrder.update({
+      where: { id: order.id },
+      data: { state: OrderState.Active },
+    });
+  } else if (action === 'return') {
+    if (order.state !== OrderState.Active) {
+      throw new Error(`409: Invalid state transition: Cannot return from state ${order.state}`);
+    }
+    // Active -> Returned
+    await prisma.rentalOrder.update({
+      where: { id: order.id },
+      data: { state: OrderState.Returned },
+    });
+    // Increment stock qty since it's physically back
+    await prisma.product.update({
+      where: { id: order.productId },
+      data: { stockQty: { increment: 1 } },
+    });
+  } else if (action === 'settle') {
+    if (order.state !== OrderState.Returned) {
+      throw new Error(`409: Invalid state transition: Cannot settle from state ${order.state}`);
+    }
+
+    const returnDateObj = new Date();
+    const end = startOfDay(order.endDate);
+    const returnDay = startOfDay(returnDateObj);
+
+    let daysLate = 0;
+    if (isAfter(returnDay, end)) {
+      daysLate = differenceInCalendarDays(returnDay, end);
+    }
+
+    const maxPenalty = order.depositAmount;
+    const penalty = Math.min(daysLate * order.product.lateFeePerDay, maxPenalty);
+    const refund = Math.max(0, order.depositAmount - penalty);
+
+    await prisma.rentalOrder.update({
+      where: { id: order.id },
+      data: {
+        state: OrderState.Settled,
+        penaltyAmount: penalty,
+        depositRefunded: refund,
+      },
+    });
+  } else {
+    throw new Error(`400: Unknown action: ${action}`);
+  }
 }

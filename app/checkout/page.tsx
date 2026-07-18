@@ -1,10 +1,18 @@
 import CheckoutForm from '@/components/CheckoutForm';
-import { requireCustomer } from '@/lib/auth';
+import { requireCustomerAccess, AuthError } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CheckoutPage() {
-  await requireCustomer(); // Ensure only logged-in customers can checkout
+  try {
+    await requireCustomerAccess(); // Ensure only logged-in customers can checkout
+  } catch (error) {
+    if (error instanceof AuthError && error.statusCode === 401) {
+      redirect('/login?next=/checkout');
+    }
+    throw error;
+  }
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">

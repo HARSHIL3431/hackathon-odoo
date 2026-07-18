@@ -45,6 +45,11 @@ export default async function RootLayout({
                   <Link href="/" className="text-xl font-bold text-blue-600">
                     RentalApp
                   </Link>
+                  {(session?.role === Role.VENDOR || session?.role === Role.ADMIN) && (
+                    <Link href="/vendor/dashboard" className="ml-8 text-sm font-medium text-gray-700 hover:text-blue-600">
+                      Vendor Dashboard
+                    </Link>
+                  )}
                   {session?.role === Role.ADMIN && (
                     <Link href="/admin/dashboard" className="ml-8 text-sm font-medium text-gray-700 hover:text-blue-600">
                       Admin Dashboard
@@ -53,7 +58,7 @@ export default async function RootLayout({
                 </div>
                 <div className="flex items-center space-x-6">
                   <CartBadge />
-                  {session && session.role === Role.CUSTOMER && (
+                  {session && (session.role === Role.CUSTOMER || session.role === Role.VENDOR || session.role === Role.ADMIN) && (
                     <Link href="/orders" className="text-sm font-medium text-gray-700 hover:text-blue-600">
                       My Orders
                     </Link>

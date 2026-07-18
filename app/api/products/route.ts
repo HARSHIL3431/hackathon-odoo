@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireAdmin, AuthError } from '@/lib/auth';
+import { requireVendorAccess, requireAdminOnly, AuthError } from '@/lib/auth';
+import { z } from 'zod';
+
+const createProductSchema = z.object({
+  name: z.string().min(1, 'Product name is required'),
+  description: z.string().optional(),
+  rentalPricePerDay: z.number().positive('Rental price must be positive'),
+  depositAmount: z.number().nonnegative('Deposit must be non-negative'),
+  lateFeePerDay: z.number().nonnegative('Late fee must be non-negative'),
+  stockQty: z.number().int().min(0, 'Stock must be non-negative'),
+});
 
 export async function GET() {
   try {
@@ -16,19 +26,27 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireVendorAccess(); // Vendor or Admin
     
     const body = await req.json();
-    const { name, description, rentalPricePerDay, depositAmount, lateFeePerDay, stockQty } = body;
+    const parsed = createProductSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues.map(i => i.message).join(', ') },
+        { status: 400 }
+      );
+    }
+
+    const { name, description, rentalPricePerDay, depositAmount, lateFeePerDay, stockQty } = parsed.data;
 
     const product = await prisma.product.create({
       data: {
         name,
         description,
-        rentalPricePerDay: parseFloat(rentalPricePerDay),
-        depositAmount: parseFloat(depositAmount),
-        lateFeePerDay: parseFloat(lateFeePerDay),
-        stockQty: parseInt(stockQty, 10),
+        rentalPricePerDay,
+        depositAmount,
+        lateFeePerDay,
+        stockQty,
       },
     });
 

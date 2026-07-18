@@ -103,7 +103,7 @@ In-store path: Admin creates quotation directly (skips customer browsing), same 
 ```
 
 ```
-User (id, name, email, passwordHash, role: CUSTOMER|ADMIN)
+User (id, name, email, passwordHash, role: CUSTOMER|VENDOR|ADMIN)
 Product (id, name, description, rentalPricePerDay, depositAmount, lateFeePerDay, stockQty)
 Pricelist (id, name, isDefault, discountPercent, validFrom, validTo)
 RentalOrder (id, customerId, productId, startDate, endDate, state, quotationType: ONLINE|INSTORE,
@@ -166,16 +166,20 @@ Admin processes return  │                │                     │          
 ```
 
 ## 5c. API Contract (one page)
-| Method | Endpoint | Purpose |
-|---|---|---|
-| POST | `/api/auth/register` | create customer/admin account |
-| POST | `/api/auth/login` | issue JWT httpOnly cookie |
-| GET | `/api/products` | list products |
-| POST | `/api/products` | (admin) create product |
-| POST | `/api/orders` | create RentalOrder (Draft) |
-| POST | `/api/orders/:id/transition` | body `{action: confirm\|pay\|pickup\|return\|settle}` — only legal path enforced |
-| GET | `/api/orders?filter=` | list orders (active/overdue/completed) |
-| GET | `/api/dashboard` | aggregated dashboard metrics |
+| Method | Endpoint | Purpose | Guard |
+|---|---|---|---|
+| POST | `/api/auth/register` | create customer account | none |
+| POST | `/api/auth/login` | issue JWT httpOnly cookie | none |
+| GET | `/api/products` | list products | none (public) |
+| POST | `/api/products` | create product | `requireVendorAccess()` (Vendor or Admin) |
+| DELETE | `/api/products/:id` | delete product | `requireAdminOnly()` |
+| POST | `/api/orders` | create RentalOrder (Draft) | `requireCustomerAccess()` |
+| POST | `/api/orders/:id/transition` | body `{action: confirm\|pay\|pickup\|return\|settle}` — only legal path enforced | `requireVendorAccess()` for pickup/return/settle |
+| GET | `/api/orders?filter=` | list orders (active/overdue/completed) | `requireVendorAccess()` |
+| GET | `/api/dashboard` | vendor dashboard aggregated metrics | `requireVendorAccess()` |
+| GET | `/api/admin/dashboard` | admin-only dashboard | `requireAdminOnly()` |
+| GET | `/api/admin/users` | list users | `requireAdminOnly()` |
+| GET/POST | `/api/admin/pricelist` | pricelist CRUD | `requireAdminOnly()` |
 
 ## 6. API Design (minimal REST)
 - `POST /api/auth/register|login`

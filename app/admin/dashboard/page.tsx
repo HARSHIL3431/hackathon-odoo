@@ -1,9 +1,9 @@
-import { requireAdmin, AuthError } from '@/lib/auth';
+import { requireAdminOnly, AuthError } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
 export default async function AdminDashboardPage() {
   try {
-    await requireAdmin();
+    await requireAdminOnly();
   } catch (error) {
     if (error instanceof AuthError) {
       if (error.statusCode === 401) redirect('/login');

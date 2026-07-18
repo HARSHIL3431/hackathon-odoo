@@ -1,12 +1,22 @@
 import prisma from '@/lib/prisma';
-import { requireCustomer } from '@/lib/auth';
+import { requireCustomerAccess, AuthError } from '@/lib/auth';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 import Link from 'next/link';
+import { RentalOrder, Product } from '@prisma/client';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
 export default async function OrdersPage() {
-  const session = await requireCustomer(); // Protects route
+  let session;
+  try {
+    session = await requireCustomerAccess(); // Protects route
+  } catch (error) {
+    if (error instanceof AuthError && error.statusCode === 401) {
+      redirect('/login?next=/orders');
+    }
+    throw error;
+  }
 
   const orders = await prisma.rentalOrder.findMany({
     where: { customerId: session.userId },
@@ -25,7 +35,7 @@ export default async function OrdersPage() {
       ) : (
         <div className="overflow-hidden bg-white shadow sm:rounded-md border border-gray-200">
           <ul role="list" className="divide-y divide-gray-200">
-            {orders.map((order) => (
+            {orders.map((order: RentalOrder & { product: Product }) => (
               <li key={order.id}>
                 <Link href={`/orders/${order.id}`} className="block hover:bg-gray-50">
                   <div className="px-4 py-4 sm:px-6 flex items-center justify-between">

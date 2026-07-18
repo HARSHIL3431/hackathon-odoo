@@ -42,6 +42,18 @@ async function main() {
     },
   })
 
+  // Seed Vendor
+  await prisma.user.upsert({
+    where: { email: 'vendor@rental.com' },
+    update: {},
+    create: {
+      name: 'Vendor User',
+      email: 'vendor@rental.com',
+      passwordHash,
+      role: Role.VENDOR,
+    },
+  })
+
   // Seed Products
   const products = [
     {

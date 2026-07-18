@@ -16,31 +16,43 @@ A web-based Rental ERP where customers browse and rent products online (or via i
 Single deliverable, single repo, solo build, 24-hour hackathon.
 
 ## 2. Targeted Users
-- **Customer**: browses products, rents online, pays deposit, tracks orders, returns product in-store.
-- **Admin**: only backend role. Creates products/pricelists, handles in-store quotations, manages pickup/return, settles deposits, views dashboard.
+This hackathon requires three separate portals — Customer, Vendor, and Admin — each a real, working deliverable, not a placeholder. **See RULES.md → Permission Matrix for the authoritative access table.**
 
-No separate "Vendor" role — Admin covers all backend responsibilities per the original PRD.
+- **Customer**: browses products, rents online, pays deposit, tracks orders, returns product in-store.
+- **Vendor**: day-to-day operations — product creation (not deletion), in-store quotations, vendor dashboard, pickup/return processing, deposit settlement. No access to Cart/Checkout (Vendor doesn't shop), no access to Reports/Settings/User Management (Admin-only).
+- **Admin**: superset role — has all Vendor and Customer access PLUS admin-only features: Admin Dashboard, Delete Product, Manage Users, Reports, Settings.
+
+**Note on this change**: earlier in planning, a 3-role RBAC system was drafted and rejected as unrequested scope creep. This time it's a confirmed hackathon requirement — three portals are mandatory, with Admin as a superset role — so it's adopted deliberately. Logged here so future sessions use the current, correct role split.
 
 ## 3. Core Features (MUST BUILD)
 
-### Customer side
+### Customer Portal
 - Register / Login
 - Browse products (list + detail page)
 - Select rental period, add to cart
 - Checkout: delivery or store pickup, pay (stub payment ok)
 - View invoice after payment
 - View "My Orders" with status
-- Return flow trigger (mark "returned" — actual inspection done by Admin)
+- Return flow trigger (mark "returned" — actual inspection done by Vendor)
 
-### Admin side
-- Login (separate role flag, same auth table)
+### Vendor Portal (day-to-day operations)
+- Login (VENDOR role)
 - Dashboard: active rentals, due today, overdue, revenue, deposits held, late fees collected
-- Product CRUD (name, rental price, deposit amount, late fee/day, stock qty)
-- Pricelist (at least: default + 1 custom pricelist)
+- Product Create (name, rental price, deposit amount, late fee/day, stock qty) — Vendor can create/edit, cannot delete
 - In-store quotation creation → confirm → invoice (offline flow)
 - Pickup confirmation (mark order as picked up/active)
 - Return processing: on-time → full deposit refund; late → penalty calc → partial refund
 - Order list with filters (active, overdue, completed)
+
+### Admin Portal (superset role — has all Vendor + Customer access, plus admin-only features)
+- Login (ADMIN role)
+- Admin Dashboard (admin-only view, separate from Vendor Dashboard)
+- Delete Product (Admin-only — Vendor cannot delete)
+- User management: list all users (customers + vendors), view roles
+- Vendor management: list/approve vendor accounts
+- Pricelist management: at least default + 1 custom pricelist, CRUD
+- Reports (Admin-only)
+- Company/rental settings: late fee defaults, grace period — can be a simple settings form
 
 ## 4. Business Rules (must be correct, this is what's graded)
 - Deposit collected at payment time.
@@ -55,15 +67,15 @@ No separate "Vendor" role — Admin covers all backend responsibilities per the 
 - Predictive maintenance
 - Generic attribute/variant engine (hardcode 1–2 variant types max, e.g. color)
 - Real payment gateway (stub only)
-- Vendor role
 - Multi-currency / multi-company
 
 ## 6. Success Criteria
-- **Completing the entire feature list is NOT required.** Whatever is built must be fully integrated (real data, real state transitions) — no stubbed features that only look done.
-- At minimum, the full online rental lifecycle (browse → pay → pickup → return → deposit settlement) works end-to-end with zero shortcuts.
+- **Completing the entire feature list is NOT required, but all three portals must exist and be real** — no stubbed features that only look done, per hackathon requirement.
+- At minimum, the full online rental lifecycle (browse → pay → pickup → return → deposit settlement) works end-to-end with zero shortcuts, spanning Customer and Vendor portals.
+- Admin portal exists with at least user list, vendor list, and pricelist CRUD — real DB-backed, not mock data.
 - Key edge cases are handled and demoable (see RULES.md → Edge Cases to Handle), not just the happy path.
 - Deposit/late-fee math is correct.
-- You can verbally explain every state transition and why it exists.
+- You can verbally explain every state transition, every role's boundary, and why each exists.
 
 ## 7. Future Enhancements (post-hackathon, not for 24hr build)
 - QR code pickup/return scanning

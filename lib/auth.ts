@@ -42,15 +42,34 @@ export async function getSession(): Promise<TokenPayload | null> {
   }
 }
 
-export async function requireCustomer(): Promise<TokenPayload> {
+// --- Permission Matrix Guards (RULES.md authoritative) ---
+// requireCustomerAccess() — allows CUSTOMER or ADMIN. Used for Cart, Checkout.
+// requireVendorAccess()   — allows VENDOR or ADMIN. Used for Vendor Dashboard, Create Product.
+// requireAdminOnly()      — allows ADMIN only. Used for Admin Dashboard, Delete Product, Manage Users, Reports, Settings.
+
+export async function requireCustomerAccess(): Promise<TokenPayload> {
   const session = await getSession();
   if (!session) {
     throw new AuthError('Not authenticated', 401);
   }
+  if (session.role !== Role.CUSTOMER && session.role !== Role.ADMIN) {
+    throw new AuthError('Forbidden: Customer access required', 403);
+  }
   return session;
 }
 
-export async function requireAdmin(): Promise<TokenPayload> {
+export async function requireVendorAccess(): Promise<TokenPayload> {
+  const session = await getSession();
+  if (!session) {
+    throw new AuthError('Not authenticated', 401);
+  }
+  if (session.role !== Role.VENDOR && session.role !== Role.ADMIN) {
+    throw new AuthError('Forbidden: Vendor access required', 403);
+  }
+  return session;
+}
+
+export async function requireAdminOnly(): Promise<TokenPayload> {
   const session = await getSession();
   if (!session) {
     throw new AuthError('Not authenticated', 401);

@@ -1,14 +1,22 @@
 import prisma from '@/lib/prisma';
-import { requireCustomer } from '@/lib/auth';
+import { requireCustomerAccess, AuthError } from '@/lib/auth';
 import { notFound } from 'next/navigation';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
-import { AuthError } from '@/lib/auth';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await requireCustomer();
+  let session;
+  try {
+    session = await requireCustomerAccess();
+  } catch (error) {
+    if (error instanceof AuthError && error.statusCode === 401) {
+      redirect('/login?next=/orders');
+    }
+    throw error;
+  }
   const { id } = await params;
 
   const order = await prisma.rentalOrder.findUnique({

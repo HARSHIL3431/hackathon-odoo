@@ -83,11 +83,30 @@ Before every state-changing action (pickup, return, settle), re-check the order'
 ## Transaction Rule
 Any operation touching multiple tables must use a single `prisma.$transaction`. Example — checkout: create RentalOrder + create Payment + decrement Product stock all commit together or not at all.
 
+## Permission Matrix (authoritative — source of truth for all route guards)
+| Feature | Customer | Vendor | Admin |
+|---|---|---|---|
+| Browse Products | ✅ | ✅ | ✅ |
+| Cart | ✅ | ❌ | ✅ |
+| Checkout | ✅ | ❌ | ✅ |
+| Vendor Dashboard | ❌ | ✅ | ✅ |
+| Admin Dashboard | ❌ | ❌ | ✅ |
+| Create Product | ❌ | ✅ (limited) | ✅ |
+| Delete Product | ❌ | ❌ | ✅ |
+| Manage Users | ❌ | ❌ | ✅ |
+| Reports | ❌ | ❌ | ✅ |
+| Settings | ❌ | ❌ | ✅ |
+
+**"Limited" for Vendor Create Product = Vendor can create but cannot delete.** Delete is Admin-only, full stop.
+
+**Admin is a superset role** — it passes every guard below, not just its own. This replaces the earlier "Admin = config-only, Vendor = operations" split; Admin can do everything Vendor and Customer can, plus admin-only features.
+
 ## Authorization Rule
-Don't scatter role checks. Use two guard functions:
-- `requireCustomer()` — for customer-only routes
-- `requireAdmin()` — for admin-only routes
-Call these at the top of every route handler that needs it.
+Don't scatter role checks. Use these guard functions, each matching the matrix above exactly:
+- `requireCustomerAccess()` — allows `CUSTOMER` or `ADMIN`. Used for Cart, Checkout.
+- `requireVendorAccess()` — allows `VENDOR` or `ADMIN`. Used for Vendor Dashboard, Create Product.
+- `requireAdminOnly()` — allows `ADMIN` only. Used for Admin Dashboard, Delete Product, Manage Users, Reports, Settings.
+Call these at the top of every route handler that needs it. Never write an inline `if (role === ...)` check outside these functions.
 
 ## Architecture Principle
 **RentalOrder is the aggregate root.** All business operations begin and end with RentalOrder — other entities (Product, Payment) never change rental-workflow state independently.
