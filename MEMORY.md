@@ -25,9 +25,15 @@
 - **Quantity Unrolling**: Because `RentalOrder` does not have a `quantity` column, Phase 3 unrolls checkout items. A cart item with quantity 3 creates 3 distinct `RentalOrder` rows (and 3 `Payment` rows) within a single transaction. This satisfies the schema without modification and aligns perfectly with strict single-asset state machine tracking (like Odoo stock quants).
 
 ## Currently Working On
+Phase 3 complete. Awaiting approval to begin Phase 4.
+
+## Phase 3 Completion Notes
+- Previous session left 4 critical bugs (CheckoutForm used `cart` instead of `items`, CartSummary missing `Link` import, no Zod on API, no nav link). All fixed.
+- DB verification: stock decrement PASS, order creation PASS, FK relations PASS, payment records PASS, order isolation PASS.
+- Build: zero TypeScript errors, zero build errors, all 15 routes compile.
 
 ## Known Issues / Blockers
-(none yet)
+(none)
 
 ## Decisions Made Mid-Build
 - **JWT & Route Guards:** Next.js Edge Runtime (middleware.ts) does not support Node.js `crypto` required by `jsonwebtoken`. Consequently, route protection is implemented via utility functions (`requireCustomer`, `requireAdmin`) inside Server Components and API Routes rather than `middleware.ts`.

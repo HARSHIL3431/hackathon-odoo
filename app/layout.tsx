@@ -53,6 +53,11 @@ export default async function RootLayout({
                 </div>
                 <div className="flex items-center space-x-6">
                   <CartBadge />
+                  {session && session.role === Role.CUSTOMER && (
+                    <Link href="/orders" className="text-sm font-medium text-gray-700 hover:text-blue-600">
+                      My Orders
+                    </Link>
+                  )}
                   {session ? (
                     <div className="flex items-center space-x-4 border-l pl-6">
                       <span className="text-sm text-gray-500">Welcome, {session.name}</span>

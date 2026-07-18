@@ -1,25 +1,30 @@
 'use client';
 
 import { useState } from 'react';
-import { useCart } from './CartProvider';
+import { useCart, CartItem } from './CartProvider';
 import { useRouter } from 'next/navigation';
 
 export default function CheckoutForm() {
-  const { cart, clearCart } = useCart();
+  const { items, clearCart } = useCart();
   const router = useRouter();
   
   const [method, setMethod] = useState('Credit Card');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Example totals calculation
-  const totalAmount = cart.reduce((sum, item) => sum + item.rentalTotal, 0);
-  const totalDeposit = cart.reduce((sum, item) => sum + item.depositTotal, 0);
+  const totalAmount = items.reduce((sum: number, item: CartItem) => sum + item.rentalTotal, 0);
+  const totalDeposit = items.reduce((sum: number, item: CartItem) => sum + item.depositTotal, 0);
   const grandTotal = totalAmount + totalDeposit;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (cart.length === 0) return;
+    if (items.length === 0) return;
+
+    // Simulated payment failure for "Cash at Store" method
+    if (method === 'Cash at Store') {
+      setError('Payment failed: Cash at Store payments are not accepted online. Please choose another method.');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -29,7 +34,7 @@ export default function CheckoutForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: cart.map(item => ({
+          items: items.map((item: CartItem) => ({
             productId: item.product.id,
             startDate: item.startDate,
             endDate: item.endDate,
@@ -44,17 +49,18 @@ export default function CheckoutForm() {
         throw new Error(errorData.error || 'Checkout failed');
       }
 
-      // Success!
+      // Success — clear cart and redirect
       clearCart();
       router.push('/orders');
-      router.refresh(); // Refresh to ensure the new order is loaded immediately
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during checkout.');
-      setLoading(false); // Re-enable form so they can correct errors
+      router.refresh();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An error occurred during checkout.';
+      setError(message);
+      setLoading(false);
     }
   };
 
-  if (cart.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="rounded-md bg-yellow-50 p-4 mt-6">
         <p className="text-sm text-yellow-700">Your cart is empty. Please add items before checking out.</p>
@@ -75,7 +81,7 @@ export default function CheckoutForm() {
       <div>
         <h4 className="text-md font-medium text-gray-700 mb-3">Order Summary</h4>
         <div className="space-y-2 border-b border-gray-200 pb-4 mb-4">
-          {cart.map((item, idx) => (
+          {items.map((item: CartItem, idx: number) => (
             <div key={idx} className="flex justify-between text-sm">
               <span>{item.quantity}x {item.product.name} ({item.days} days)</span>
               <span>₹{item.rentalTotal + item.depositTotal}</span>
@@ -100,7 +106,7 @@ export default function CheckoutForm() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Payment Method (Stub)</label>
+        <label className="block text-sm font-medium text-gray-700">Payment Method</label>
         <select
           value={method}
           onChange={(e) => setMethod(e.target.value)}
@@ -110,7 +116,7 @@ export default function CheckoutForm() {
           <option value="Credit Card">Credit Card</option>
           <option value="Debit Card">Debit Card</option>
           <option value="UPI">UPI</option>
-          <option value="Cash at Store">Cash at Store (Simulated failure)</option>
+          <option value="Cash at Store">Cash at Store (will fail — demo)</option>
         </select>
       </div>
 

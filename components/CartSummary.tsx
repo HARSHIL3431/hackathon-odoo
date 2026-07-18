@@ -3,6 +3,7 @@
 import React from 'react';
 import { useCart } from './CartProvider';
 import { format } from 'date-fns';
+import Link from 'next/link';
 
 export default function CartSummary() {
   const { items, removeFromCart, cartTotal, cartDeposit } = useCart();
@@ -61,12 +62,9 @@ export default function CartSummary() {
         </div>
 
         <div className="mt-8">
-          <button className="w-full rounded-md bg-blue-600 py-3 px-4 text-white hover:bg-blue-700 font-medium text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+          <Link href="/checkout" className="block w-full text-center rounded-md bg-blue-600 py-3 px-4 text-white hover:bg-blue-700 font-medium text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
             Proceed to Checkout
-          </button>
-          <p className="text-xs text-center text-gray-500 mt-2">
-            Checkout logic is implemented in Phase 3.
-          </p>
+          </Link>
         </div>
       </div>
     </div>

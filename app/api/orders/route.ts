@@ -1,41 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { processCheckout, CheckoutItem } from '@/lib/rental-logic';
+import { processCheckout } from '@/lib/rental-logic';
+import { z } from 'zod';
+
+const checkoutItemSchema = z.object({
+  productId: z.string().uuid(),
+  startDate: z.string().datetime({ offset: true }).or(z.string().min(10)),
+  endDate: z.string().datetime({ offset: true }).or(z.string().min(10)),
+  quantity: z.number().int().min(1),
+});
+
+const checkoutSchema = z.object({
+  items: z.array(checkoutItemSchema).min(1, 'Cart is empty'),
+  method: z.string().min(1, 'Payment method is required'),
+});
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
-    if (!session || session.role !== 'CUSTOMER') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    if (session.role !== 'CUSTOMER') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await req.json();
-    const items: CheckoutItem[] = body.items;
-    const method: string = body.method;
-
-    if (!items || items.length === 0) {
-      return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
+    const parsed = checkoutSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues.map(i => i.message).join(', ') },
+        { status: 400 }
+      );
     }
 
-    // Execute the checkout process inside an atomic transaction
+    const { items, method } = parsed.data;
+
+    // Execute the checkout inside an atomic transaction
     const orderIds = await prisma.$transaction(async (tx) => {
       return await processCheckout(tx, session.userId, items, method);
     });
 
     return NextResponse.json({ success: true, orderIds });
-  } catch (error: any) {
-    console.error('Checkout error:', error);
-    // 409 Conflict is appropriate for business logic violations like insufficient stock
-    return NextResponse.json({ error: error.message || 'Checkout failed' }, { status: 409 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Checkout failed';
+    console.error('Checkout error:', message);
+    return NextResponse.json({ error: message }, { status: 409 });
   }
 }
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession();
-    if (!session || session.role !== 'CUSTOMER') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    if (session.role !== 'CUSTOMER') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const orders = await prisma.rentalOrder.findMany({
@@ -47,7 +69,7 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(orders);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Fetch orders error:', error);
     return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
   }
