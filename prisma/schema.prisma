@@ -35,9 +35,16 @@ model User {
   email        String        @unique
   passwordHash String
   role         Role          @default(CUSTOMER)
+  isApproved   Boolean       @default(true)
   orders       RentalOrder[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+}
+
+model SystemSettings {
+  id               String   @id @default("global")
+  lateFeeDefault   Float    @default(20.0)
+  gracePeriodHours Int      @default(24)
 }
 
 model Product {

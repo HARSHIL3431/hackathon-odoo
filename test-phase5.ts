@@ -38,8 +38,16 @@ async function main() {
 
   console.log("Testing Return & Settle On-Time");
   const order2 = await createOrder(0, OrderState.Active);
+  
+  // Check stock before return
+  const stockBefore2 = (await prisma.product.findUnique({ where: { id: product.id } }))?.stockQty;
   await prisma.$transaction(async (tx) => {
     await processTransition(tx, order2.id, 'return');
+  });
+  const stockAfter2 = (await prisma.product.findUnique({ where: { id: product.id } }))?.stockQty;
+  console.log(`Stock before return: ${stockBefore2}, after return: ${stockAfter2} (Expected +1)`);
+  
+  await prisma.$transaction(async (tx) => {
     await processTransition(tx, order2.id, 'settle');
   });
   const updated2 = await prisma.rentalOrder.findUnique({ where: { id: order2.id } });
@@ -84,6 +92,19 @@ async function main() {
     console.error("FAIL: Should have thrown");
   } catch (err: any) {
     console.log("Successfully caught double settle:", err.message);
+  }
+
+  console.log("Testing Concurrent Double-Click on Pickup");
+  const order6 = await createOrder(5, OrderState.Paid);
+  try {
+    // Simulate concurrent exact same calls
+    await Promise.all([
+      processTransition(prisma, order6.id, 'pickup'),
+      processTransition(prisma, order6.id, 'pickup')
+    ]);
+    console.error("FAIL: Should have thrown on one of them");
+  } catch (err: any) {
+    console.log("Successfully caught concurrent pickup double-click:", err.message);
   }
 
   console.log("All tests finished.");

@@ -1,30 +1,42 @@
-import { requireAdminOnly, AuthError } from '@/lib/auth';
-import { redirect } from 'next/navigation';
+import { requireAdminOnly } from '@/lib/auth';
+import prisma from '@/lib/prisma';
+import DashboardWidget from '@/components/DashboardWidget';
+import { Role } from '@prisma/client';
 
 export default async function AdminDashboardPage() {
-  try {
-    await requireAdminOnly();
-  } catch (error) {
-    if (error instanceof AuthError) {
-      if (error.statusCode === 401) redirect('/login');
-      if (error.statusCode === 403) {
-        return (
-          <div className="flex h-screen items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-4xl font-bold text-red-600">403</h1>
-              <p className="mt-2 text-lg text-gray-700">Forbidden: Admin access required</p>
-            </div>
-          </div>
-        );
-      }
-    }
-    throw error;
-  }
+  await requireAdminOnly();
+
+  const totalUsers = await prisma.user.count();
+  const totalVendors = await prisma.user.count({ where: { role: Role.VENDOR } });
+  const pendingVendors = await prisma.user.count({ where: { role: Role.VENDOR, isApproved: false } });
+  const totalPricelists = await prisma.pricelist.count();
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-      <p>Welcome to the admin area.</p>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900">Admin Overview</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <DashboardWidget 
+          label="Total Users" 
+          value={totalUsers.toString()} 
+          color="text-blue-700" 
+        />
+        <DashboardWidget 
+          label="Total Vendors" 
+          value={totalVendors.toString()} 
+          color="text-indigo-700" 
+        />
+        <DashboardWidget 
+          label="Pending Vendors" 
+          value={pendingVendors.toString()} 
+          color={pendingVendors > 0 ? "text-red-700" : "text-green-700"} 
+        />
+        <DashboardWidget 
+          label="Active Pricelists" 
+          value={totalPricelists.toString()} 
+          color="text-purple-700" 
+        />
+      </div>
     </div>
   );
 }

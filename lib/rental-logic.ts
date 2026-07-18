@@ -150,7 +150,7 @@ export async function processTransition(
   orderId: string,
   action: 'pickup' | 'return' | 'settle'
 ) {
-  // Concurrency Guard: Check current state immediately before mutation
+  // Initial fetch to get metadata (prices, dates, product)
   const order = await prisma.rentalOrder.findUnique({
     where: { id: orderId },
     include: { product: true },
@@ -160,34 +160,27 @@ export async function processTransition(
     throw new Error("Order not found");
   }
 
+  const concurrencyErrorMsg = '409: Order state has changed or transition is invalid. Please refresh and try again.';
+
   if (action === 'pickup') {
-    if (order.state !== OrderState.Paid) {
-      throw new Error(`409: Invalid state transition: Cannot pickup from state ${order.state}`);
-    }
-    // Paid -> PickedUp -> Active
-    await prisma.rentalOrder.update({
-      where: { id: order.id },
+    const result = await prisma.rentalOrder.updateMany({
+      where: { id: order.id, state: OrderState.Paid },
       data: { state: OrderState.Active },
     });
+    if (result.count === 0) throw new Error(concurrencyErrorMsg);
   } else if (action === 'return') {
-    if (order.state !== OrderState.Active) {
-      throw new Error(`409: Invalid state transition: Cannot return from state ${order.state}`);
-    }
-    // Active -> Returned
-    await prisma.rentalOrder.update({
-      where: { id: order.id },
+    const result = await prisma.rentalOrder.updateMany({
+      where: { id: order.id, state: OrderState.Active },
       data: { state: OrderState.Returned },
     });
+    if (result.count === 0) throw new Error(concurrencyErrorMsg);
+    
     // Increment stock qty since it's physically back
     await prisma.product.update({
       where: { id: order.productId },
       data: { stockQty: { increment: 1 } },
     });
   } else if (action === 'settle') {
-    if (order.state !== OrderState.Returned) {
-      throw new Error(`409: Invalid state transition: Cannot settle from state ${order.state}`);
-    }
-
     const returnDateObj = new Date();
     const end = startOfDay(order.endDate);
     const returnDay = startOfDay(returnDateObj);
@@ -201,15 +194,18 @@ export async function processTransition(
     const penalty = Math.min(daysLate * order.product.lateFeePerDay, maxPenalty);
     const refund = Math.max(0, order.depositAmount - penalty);
 
-    await prisma.rentalOrder.update({
-      where: { id: order.id },
+    const result = await prisma.rentalOrder.updateMany({
+      where: { id: order.id, state: OrderState.Returned },
       data: {
         state: OrderState.Settled,
         penaltyAmount: penalty,
         depositRefunded: refund,
       },
     });
+    if (result.count === 0) throw new Error(concurrencyErrorMsg);
   } else {
     throw new Error(`400: Unknown action: ${action}`);
   }
 }
+
+

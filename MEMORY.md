@@ -4,16 +4,17 @@
 
 ## Status: IN PROGRESS
 
-## Current Phase
-- [x] Phase 0: Setup
-- [x] Phase 1: Authentication
-- [x] Phase 2: Customer Catalog + Cart
-- [x] Phase 3: Checkout + Order Creation (with fixes)
-- [x] Phase 4: Vendor Dashboard + Permission Matrix Refactor
-- [x] Phase 5: Pickup & Return Flow (Core Graded Logic)
-- [ ] Phase 6: Admin Portal
-- [ ] Phase 7: In-Store Quotation Flow
-- [ ] Phase 8: Polish + Demo Prep
+## Build Progress
+- [x] **Phase 1: Foundation & Auth** (Completed) - Basic layout, login, role separation.
+- [x] **Phase 2: Database & Seed** (Completed) - Prisma schema initialized and products seeded.
+- [x] **Phase 3: Catalog & Cart** (Completed) - Product browsing, client-side cart logic, and basic routing.
+- [x] **Phase 4: Order Creation (Checkout)** (Completed) - Pricing engine, idempotency, atomic cart-to-order unrolling.
+- [x] **Phase 5: Rental Lifecycle (Vendor)** (Completed) - Robust state machine (`pickup`, `return`, `settle`), penalty math, atomic updates (`updateMany`), and concurrent double-click guards.
+- [x] **Phase 6: Admin Portal** (Completed) - Layout, User List, Approvable Roles, Custom Pricelists, and Singleton System Settings.
+- [x] **Final Verification & Demo Prep** (Completed) - Automated smoke tests passed, demo script written, DB fully seeded with realistic historical/active orders.
+
+## Active Phase
+- **Hackathon Complete!** Ready for Demo.
 
 ## Database State
 - **Neon PostgreSQL**: Connected successfully via pooled string.

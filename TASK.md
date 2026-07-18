@@ -44,8 +44,14 @@ Then execute only the current task.
 
 **Success Criteria:**
 - App runs (`npm run dev`) with no errors.
-- Prisma migration successful against Neon Postgres.
-- Seed script creates 3 products, 1 admin, 2 customers.
-- Login page renders (functionality comes in Phase 1).
+- [x] Setup Admin Layout & Navigation (`app/admin/layout.tsx`, `app/admin/dashboard/page.tsx`)
+- [x] Pricelist Management (CRUD)
+  - [x] `app/admin/pricelists/page.tsx`
+  - [x] `app/admin/pricelists/new/page.tsx`
+  - [x] `app/api/admin/pricelists/route.ts`
+  - [x] Settings Management
+  - [x] `app/admin/settings/page.tsx`
+  - [x] `app/api/admin/settings/route.ts`
+  - [x] `app/admin/users/UserList.tsx`
 
 **After completion:** Update MEMORY.md. Stop and wait for next instruction.
