@@ -11,12 +11,12 @@ export default function AddToCartForm({ product }: { product: Product }) {
   const { addToCart } = useCart();
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState<number | ''>(1);
   const [error, setError] = useState('');
   const [pricing, setPricing] = useState<PricingResult | null>(null);
 
   useEffect(() => {
-    if (!startDate || !endDate || quantity <= 0) {
+    if (!startDate || !endDate || quantity === '' || quantity <= 0) {
       setPricing(null);
       setError('');
       return;
@@ -27,7 +27,7 @@ export default function AddToCartForm({ product }: { product: Product }) {
         { rentalPricePerDay: product.rentalPricePerDay, depositAmount: product.depositAmount, stockQty: product.stockQty },
         new Date(startDate),
         new Date(endDate),
-        quantity
+        quantity as number
       );
       setPricing(result);
       setError('');
@@ -39,13 +39,13 @@ export default function AddToCartForm({ product }: { product: Product }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (error || !pricing) return;
+    if (error || !pricing || quantity === '') return;
 
     addToCart({
       product,
       startDate: new Date(startDate).toISOString(),
       endDate: new Date(endDate).toISOString(),
-      quantity,
+      quantity: quantity as number,
       days: pricing.days,
       rentalTotal: pricing.rentalTotal,
       depositTotal: pricing.depositTotal,
@@ -94,7 +94,10 @@ export default function AddToCartForm({ product }: { product: Product }) {
           min="1"
           max={product.stockQty}
           value={quantity}
-          onChange={(e) => setQuantity(parseInt(e.target.value, 10))}
+          onChange={(e) => {
+            const val = e.target.value;
+            setQuantity(val === '' ? '' : parseInt(val, 10));
+          }}
           className="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           required
         />
