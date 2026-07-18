@@ -47,9 +47,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, orderIds });
   } catch (error: unknown) {
     if (error instanceof AuthError) {
-      return NextResponse.json({ error: error.message }, { status: error.statusCode });
+      return NextResponse.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: error.statusCode });
     }
-    const message = error instanceof Error ? error.message : 'Checkout failed';
+    const message = error instanceof Error ? (error instanceof Error ? error.message : String(error)) : 'Checkout failed';
     console.error('Checkout error:', message);
     // Business rule conflicts (validated in rental-logic) return 409
     const isBusinessRuleError = BUSINESS_RULE_ERRORS.some(e => message.includes(e));
@@ -72,7 +72,7 @@ export async function GET() {
     return NextResponse.json(orders);
   } catch (error: unknown) {
     if (error instanceof AuthError) {
-      return NextResponse.json({ error: error.message }, { status: error.statusCode });
+      return NextResponse.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: error.statusCode });
     }
     console.error('Fetch orders error:', error);
     return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });

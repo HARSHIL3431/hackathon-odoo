@@ -45,7 +45,7 @@ export default async function VendorOrderDetailPage({
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
               <dt className="text-slate-500">Product</dt>
-              <dd className="font-medium">{order.product.name}</dd>
+              <dd className="font-medium">{order.product.name} {order.quantity > 1 ? <span className="text-slate-400 ml-1">(x{order.quantity})</span> : null}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-slate-500">Duration</dt>

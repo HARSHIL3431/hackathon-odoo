@@ -1,41 +1,60 @@
 import React from 'react';
 import Link from 'next/link';
 import { Product } from '@prisma/client';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Package } from 'lucide-react';
 
 export default function ProductCard({ product }: { product: Product }) {
+  const inStock = product.stockQty > 0;
+
   return (
-    <div className="flex flex-col rounded-lg border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
-      <div className="p-6 flex-1">
-        <h3 className="text-lg font-semibold text-gray-900">{product.name}</h3>
-        <p className="mt-2 text-sm text-gray-500 line-clamp-2">
-          {product.description || 'No description available.'}
-        </p>
-        <div className="mt-4 flex items-end justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-900">₹{product.rentalPricePerDay} <span className="text-gray-500">/ day</span></p>
-            <p className="text-xs text-gray-500">Deposit: ₹{product.depositAmount}</p>
-          </div>
-          <div className="text-right">
-            {product.stockQty > 0 ? (
-              <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                In Stock ({product.stockQty})
-              </span>
-            ) : (
-              <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
-                Out of Stock
-              </span>
-            )}
+    <Card className="flex flex-col group transition-all duration-200 hover:shadow-md hover:border-primary/50">
+      <CardHeader>
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <CardTitle className="text-xl line-clamp-1 group-hover:text-primary transition-colors">{product.name}</CardTitle>
+            <CardDescription className="line-clamp-2 min-h-[2.5rem]">
+              {product.description || 'No description available.'}
+            </CardDescription>
           </div>
         </div>
-      </div>
-      <div className="border-t border-gray-200 bg-gray-50 px-6 py-4 rounded-b-lg">
-        <Link
-          href={`/products/${product.id}`}
-          className="block w-full text-center text-sm font-medium text-blue-600 hover:text-blue-800"
-        >
-          View Details
-        </Link>
-      </div>
-    </div>
+      </CardHeader>
+      <CardContent className="flex-1">
+        <div className="flex flex-col space-y-4">
+          <div className="flex items-end justify-between">
+            <div className="flex flex-col">
+              <span className="text-2xl font-bold tracking-tight">₹{product.rentalPricePerDay}</span>
+              <span className="text-xs text-muted-foreground">per day</span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-sm font-medium">₹{product.depositAmount}</span>
+              <span className="text-xs text-muted-foreground">Deposit</span>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Badge variant={inStock ? "success" : "destructive"} className="gap-1">
+              {inStock ? (
+                <>
+                  <Package className="w-3 h-3" />
+                  In Stock ({product.stockQty})
+                </>
+              ) : (
+                "Out of Stock"
+              )}
+            </Badge>
+          </div>
+        </div>
+      </CardContent>
+      <CardFooter className="pt-4 border-t bg-muted/20">
+        <Button asChild className="w-full" variant={inStock ? "default" : "secondary"}>
+          <Link href={`/products/${product.id}`}>
+            {inStock ? "Rent Now" : "View Details"}
+          </Link>
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }

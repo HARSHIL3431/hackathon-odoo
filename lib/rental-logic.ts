@@ -1,6 +1,6 @@
 import { OrderState, Prisma, QuotationType, Product } from '@prisma/client';
 import { calculateRentalPrice } from './pricing';
-import { startOfDay, isBefore, subSeconds, isAfter, differenceInCalendarDays } from 'date-fns';
+import { subSeconds, differenceInHours } from 'date-fns';
 
 export interface CheckoutItem {
   productId: string;
@@ -10,8 +10,8 @@ export interface CheckoutItem {
 }
 
 /**
- * Validates stock, calculates pricing securely, and creates RentalOrder/Payment
- * rows in a single atomic transaction. Unrolls quantity into separate RentalOrders.
+ * Validates availability using a dynamic Overlap Engine, calculates pricing securely,
+ * and creates RentalOrder/Payment rows in a single atomic transaction.
  */
 export async function processCheckout(
   prisma: Prisma.TransactionClient,
@@ -22,11 +22,6 @@ export async function processCheckout(
 ): Promise<string[]> {
   const createdOrderIds: string[] = [];
 
-  // Idempotency guard: check for recent duplicate checkout (same customer, same product+dates, within 30s).
-  // This prevents double-click "Pay Now" from creating duplicate orders.
-  // NOTE: Has a theoretical race window under true concurrent requests — accepted as "good enough
-  // for hackathon scope." A fully race-proof solution would use a unique constraint on a hash column
-  // or a distributed lock, both overkill here.
   const recentCutoff = subSeconds(new Date(), 30);
   const productIds = items.map(i => i.productId);
   const recentPaidOrders = await prisma.rentalOrder.findMany({
@@ -39,118 +34,114 @@ export async function processCheckout(
     },
   });
   if (recentPaidOrders.length > 0) {
-    // Duplicate detected — return the existing order IDs from the original request
     return recentPaidOrders.map(o => o.id);
   }
 
-  // Group quantities to check total requested against stock
   const requestedStock: Record<string, number> = {};
   for (const item of items) {
     requestedStock[item.productId] = (requestedStock[item.productId] || 0) + item.quantity;
   }
 
-  // Iterate all distinct products to validate stock & fetch current pricing
   const products = await prisma.product.findMany({
     where: { id: { in: Object.keys(requestedStock) } },
   });
-
   const productMap = new Map<string, Product>(products.map((p: Product) => [p.id, p]));
 
-  // Validate all items
+  // Availability Engine
   for (const item of items) {
     const product = productMap.get(item.productId);
     if (!product) throw new Error(`Product not found: ${item.productId}`);
-    
-    if (requestedStock[item.productId] > product.stockQty) {
-      throw new Error(`Insufficient stock for ${product.name}`);
+    if (!product.isActive) throw new Error(`Product is currently inactive: ${product.name}`);
+
+    const start = new Date(item.startDate);
+    const end = new Date(item.endDate);
+    const now = new Date();
+
+    if (start < now) {
+      throw new Error(`Start time cannot be in the past for ${product.name}`);
+    }
+    if (end <= start) {
+      throw new Error(`End time must be after start time for ${product.name}`);
     }
 
-    const start = startOfDay(new Date(item.startDate));
-    const end = startOfDay(new Date(item.endDate));
-    const today = startOfDay(new Date());
+    const overlappingOrders = await prisma.rentalOrder.findMany({
+      where: {
+        productId: product.id,
+        state: {
+          in: [OrderState.Confirmed, OrderState.Paid, OrderState.PickedUp, OrderState.Active]
+        },
+        startDate: { lt: end },
+        endDate: { gt: start },
+      }
+    });
 
-    if (isBefore(start, today)) {
-      throw new Error(`Start date cannot be in the past for ${product.name}`);
-    }
-    if (isBefore(end, start)) {
-      throw new Error(`End date cannot be before start date for ${product.name}`);
+    const reservedQuantity = overlappingOrders.reduce((sum, order) => sum + order.quantity, 0);
+    const availableStock = product.stockQty - reservedQuantity;
+
+    if (requestedStock[item.productId] > availableStock) {
+      throw new Error(`Insufficient availability for ${product.name}. Requested: ${requestedStock[item.productId]}, Available for these dates: ${availableStock}`);
     }
   }
 
   // Process inside the transaction
   for (const item of items) {
     const product = productMap.get(item.productId)!;
-    
-    // Decrement stock (since all requested items are valid)
-    await prisma.product.update({
-      where: { id: product.id },
-      data: { stockQty: { decrement: item.quantity } },
-    });
 
-    // We calculate price for ONE unit since we are unrolling
+    // We no longer decrement stockQty, as availability is now dynamically computed!
+
     const pricing = calculateRentalPrice(
-      { rentalPricePerDay: product.rentalPricePerDay, depositAmount: product.depositAmount, stockQty: 9999 }, // stockQty bypass: stock already validated above (lines 43-45) in same transaction; this call intentionally skips redundant check for single-unit pricing math
+      { rentalPricePerDay: product.rentalPricePerDay, depositAmount: product.depositAmount, stockQty: 9999 }, // Bypass stock check for single-unit pricing math
       new Date(item.startDate),
       new Date(item.endDate),
-      1
+      item.quantity
     );
 
-    // Unroll quantity into individual orders
-    for (let i = 0; i < item.quantity; i++) {
-      // 1. Draft
-      const order = await prisma.rentalOrder.create({
-        data: {
-          customerId: userId,
-          productId: product.id,
-          startDate: new Date(item.startDate),
-          endDate: new Date(item.endDate),
-          state: OrderState.Draft,
-          quotationType,
-          totalAmount: pricing.rentalTotal,
-          depositAmount: pricing.depositTotal,
-          depositRefunded: 0,
-          penaltyAmount: 0,
-        },
-      });
+    const order = await prisma.rentalOrder.create({
+      data: {
+        customerId: userId,
+        productId: product.id,
+        quantity: item.quantity,
+        startDate: new Date(item.startDate),
+        endDate: new Date(item.endDate),
+        state: OrderState.Draft,
+        quotationType,
+        totalAmount: pricing.rentalTotal,
+        depositAmount: pricing.depositTotal,
+        depositRefunded: 0,
+        penaltyAmount: 0,
+      },
+    });
 
-      // 2. Confirmed
-      await prisma.rentalOrder.update({
-        where: { id: order.id },
-        data: { state: OrderState.Confirmed },
-      });
+    await prisma.rentalOrder.update({
+      where: { id: order.id },
+      data: { state: OrderState.Confirmed },
+    });
 
-      // 3. Paid
-      await prisma.payment.create({
-        data: {
-          orderId: order.id,
-          amount: pricing.grandTotal,
-          method,
-          status: 'Success',
-        },
-      });
+    await prisma.payment.create({
+      data: {
+        orderId: order.id,
+        amount: pricing.grandTotal,
+        method,
+        status: 'Success',
+      },
+    });
 
-      await prisma.rentalOrder.update({
-        where: { id: order.id },
-        data: { state: OrderState.Paid },
-      });
+    await prisma.rentalOrder.update({
+      where: { id: order.id },
+      data: { state: OrderState.Paid },
+    });
 
-      createdOrderIds.push(order.id);
-    }
+    createdOrderIds.push(order.id);
   }
 
   return createdOrderIds;
 }
 
-/**
- * State machine transition for RentalOrder.
- * Performs a concurrency check immediately before mutation.
- */
 export async function processTransition(
   prisma: Prisma.TransactionClient,
   orderId: string,
   action: 'pickup' | 'return' | 'settle'
 ) {
-  // Initial fetch to get metadata (prices, dates, product)
   const order = await prisma.rentalOrder.findUnique({
     where: { id: orderId },
     include: { product: true },
@@ -174,24 +165,20 @@ export async function processTransition(
       data: { state: OrderState.Returned },
     });
     if (result.count === 0) throw new Error(concurrencyErrorMsg);
-    
-    // Increment stock qty since it's physically back
-    await prisma.product.update({
-      where: { id: order.productId },
-      data: { stockQty: { increment: 1 } },
-    });
+
+    // No longer incrementing physical stock, dynamically calculated!
   } else if (action === 'settle') {
     const returnDateObj = new Date();
-    const end = startOfDay(order.endDate);
-    const returnDay = startOfDay(returnDateObj);
+    const expectedEnd = new Date(order.endDate);
 
-    let daysLate = 0;
-    if (isAfter(returnDay, end)) {
-      daysLate = differenceInCalendarDays(returnDay, end);
+    let lateDays = 0;
+    if (returnDateObj > expectedEnd) {
+      const lateHours = Math.max(0, differenceInHours(returnDateObj, expectedEnd));
+      lateDays = Math.ceil(lateHours / 24);
     }
 
     const maxPenalty = order.depositAmount;
-    const penalty = Math.min(daysLate * order.product.lateFeePerDay, maxPenalty);
+    const penalty = Math.min(lateDays * order.product.lateFeePerDay, maxPenalty);
     const refund = Math.max(0, order.depositAmount - penalty);
 
     const result = await prisma.rentalOrder.updateMany({

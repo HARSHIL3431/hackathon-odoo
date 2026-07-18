@@ -33,8 +33,8 @@ export default function NewPricelistPage() {
 
       router.push('/admin/pricelists');
       router.refresh();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)));
       setLoading(false);
     }
   };

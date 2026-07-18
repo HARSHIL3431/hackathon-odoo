@@ -1,9 +1,8 @@
-import { requireAdminOnly } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import UserList from './UserList';
+import { Card, CardContent } from '@/components/ui/Card';
 
 export default async function AdminUsersPage() {
-  await requireAdminOnly();
 
   const users = await prisma.user.findMany({
     orderBy: { createdAt: 'desc' },
@@ -18,14 +17,19 @@ export default async function AdminUsersPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+          <p className="text-muted-foreground mt-2">Manage customer, vendor, and admin access levels.</p>
+        </div>
       </div>
       
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <UserList initialUsers={users} />
-      </div>
+      <Card>
+        <CardContent className="p-0">
+          <UserList initialUsers={users} />
+        </CardContent>
+      </Card>
     </div>
   );
 }

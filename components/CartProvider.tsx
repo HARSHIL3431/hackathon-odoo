@@ -31,6 +31,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // Hydrate cart from localStorage on mount
   useEffect(() => {
+    // eslint-disable-next-line
     setIsMounted(true);
     const saved = localStorage.getItem('cart');
     if (saved) {

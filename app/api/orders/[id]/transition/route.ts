@@ -37,11 +37,11 @@ export async function POST(
     return NextResponse.json({ success: true, message: `Transition ${action} successful` });
   } catch (error: unknown) {
     if (error instanceof Error) {
-      if (error.message.startsWith('409:')) {
-        return NextResponse.json({ error: error.message.replace('409: ', '') }, { status: 409 });
+      if ((error instanceof Error ? error.message : String(error)).startsWith('409:')) {
+        return NextResponse.json({ error: (error instanceof Error ? error.message : String(error)).replace('409: ', '') }, { status: 409 });
       }
-      if (error.message.startsWith('400:')) {
-        return NextResponse.json({ error: error.message.replace('400: ', '') }, { status: 400 });
+      if ((error instanceof Error ? error.message : String(error)).startsWith('400:')) {
+        return NextResponse.json({ error: (error instanceof Error ? error.message : String(error)).replace('400: ', '') }, { status: 400 });
       }
     }
     console.error('Transition error:', error);

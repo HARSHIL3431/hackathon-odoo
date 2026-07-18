@@ -16,9 +16,9 @@ export async function GET() {
       orderBy: { createdAt: 'desc' }
     });
     return NextResponse.json(pricelists);
-  } catch (error: any) {
-    if (error.message === 'Forbidden') return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    if ((error instanceof Error ? error.message : String(error)) === 'Forbidden') return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    return NextResponse.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500 });
   }
 }
 
@@ -45,8 +45,8 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(pricelist, { status: 201 });
-  } catch (error: any) {
-    if (error.message === 'Forbidden') return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    if ((error instanceof Error ? error.message : String(error)) === 'Forbidden') return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    return NextResponse.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500 });
   }
 }

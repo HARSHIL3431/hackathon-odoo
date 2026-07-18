@@ -37,7 +37,7 @@ export async function getSession(): Promise<TokenPayload | null> {
 
   try {
     return verifyToken(token);
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -79,3 +79,5 @@ export async function requireAdminOnly(): Promise<TokenPayload> {
   }
   return session;
 }
+
+export const requireAdminAccess = requireAdminOnly;

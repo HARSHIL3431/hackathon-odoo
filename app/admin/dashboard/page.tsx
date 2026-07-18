@@ -1,10 +1,9 @@
-import { requireAdminOnly } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import DashboardWidget from '@/components/DashboardWidget';
 import { Role } from '@prisma/client';
+import { Users, UserCheck, AlertCircle, Tags } from 'lucide-react';
 
 export default async function AdminDashboardPage() {
-  await requireAdminOnly();
 
   const totalUsers = await prisma.user.count();
   const totalVendors = await prisma.user.count({ where: { role: Role.VENDOR } });
@@ -12,29 +11,36 @@ export default async function AdminDashboardPage() {
   const totalPricelists = await prisma.pricelist.count();
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Admin Overview</h1>
+    <div className="flex flex-col space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Admin Overview</h1>
+        <p className="text-muted-foreground mt-2">Manage the platform, users, and global settings.</p>
+      </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <DashboardWidget 
           label="Total Users" 
           value={totalUsers.toString()} 
-          color="text-blue-700" 
+          icon={<Users />}
+          color="text-primary" 
         />
         <DashboardWidget 
           label="Total Vendors" 
           value={totalVendors.toString()} 
-          color="text-indigo-700" 
+          icon={<UserCheck />}
+          color="text-primary" 
         />
         <DashboardWidget 
           label="Pending Vendors" 
           value={pendingVendors.toString()} 
-          color={pendingVendors > 0 ? "text-red-700" : "text-green-700"} 
+          icon={<AlertCircle className={pendingVendors > 0 ? "text-amber-500" : "text-muted-foreground"} />}
+          color={pendingVendors > 0 ? "text-amber-500" : "text-green-600"} 
         />
         <DashboardWidget 
           label="Active Pricelists" 
           value={totalPricelists.toString()} 
-          color="text-purple-700" 
+          icon={<Tags />}
+          color="text-primary" 
         />
       </div>
     </div>

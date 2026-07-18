@@ -36,6 +36,10 @@ model User {
   passwordHash String
   role         Role          @default(CUSTOMER)
   isApproved   Boolean       @default(true)
+  isActive     Boolean       @default(true)
+  company      String?
+  phone        String?
+  address      String?
   orders       RentalOrder[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -51,10 +55,18 @@ model Product {
   id                String        @id @default(uuid())
   name              String
   description       String?
+  category          String?
+  image             String?
+  isActive          Boolean       @default(true)
   rentalPricePerDay Float
   depositAmount     Float
   lateFeePerDay     Float
   stockQty          Int
+  sku               String?
+  manufacturer      String?
+  brand             String?
+  barcode           String?
+  assetCode         String?
   orders            RentalOrder[]
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -77,6 +89,7 @@ model RentalOrder {
   customer        User          @relation(fields: [customerId], references: [id])
   productId       String
   product         Product       @relation(fields: [productId], references: [id])
+  quantity        Int           @default(1)
   startDate       DateTime
   endDate         DateTime
   state           OrderState    @default(Draft)

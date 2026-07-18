@@ -1,16 +1,28 @@
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { ReactNode } from 'react';
+
 export default function DashboardWidget({
   label,
   value,
-  color = 'text-gray-900',
+  color = 'text-foreground',
+  icon,
 }: {
   label: string;
   value: string | number;
   color?: string;
+  icon?: ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <p className="text-sm font-medium text-gray-500">{label}</p>
-      <p className={`mt-2 text-3xl font-bold tabular-nums ${color}`}>{value}</p>
-    </div>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          {label}
+        </CardTitle>
+        {icon && <div className="h-4 w-4 text-muted-foreground">{icon}</div>}
+      </CardHeader>
+      <CardContent>
+        <div className={`text-2xl font-bold tabular-nums ${color}`}>{value}</div>
+      </CardContent>
+    </Card>
   );
 }

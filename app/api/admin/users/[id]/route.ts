@@ -34,10 +34,10 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     });
 
     return NextResponse.json(updatedUser);
-  } catch (error: any) {
-    if (error.message === 'Forbidden') {
+  } catch (error: unknown) {
+    if ((error instanceof Error ? error.message : String(error)) === 'Forbidden') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500 });
   }
 }

@@ -5,132 +5,208 @@ import { Product } from '@prisma/client';
 import { calculateRentalPrice, PricingResult } from '@/lib/pricing';
 import { useCart } from './CartProvider';
 import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { ShoppingCart, CalendarDays } from 'lucide-react';
 
 export default function AddToCartForm({ product }: { product: Product }) {
   const router = useRouter();
   const { addToCart } = useCart();
   const [startDate, setStartDate] = useState('');
+  const [startTime, setStartTime] = useState('09:00');
   const [endDate, setEndDate] = useState('');
+  const [endTime, setEndTime] = useState('17:00');
   const [quantity, setQuantity] = useState<number | ''>(1);
   const [error, setError] = useState('');
   const [pricing, setPricing] = useState<PricingResult | null>(null);
 
-  useEffect(() => {
-    if (!startDate || !endDate || quantity === '' || quantity <= 0) {
+  const isCompleteDate = (value: string) => {
+    if (!value) return false;
+    const parts = value.split('-');
+    if (parts.length !== 3) return false;
+    const yearStr = parts[0];
+    return yearStr.length === 4 && yearStr[0] !== '0';
+  };
+
+  const getCombinedDateTime = (dateStr: string, timeStr: string): Date | null => {
+    if (!isCompleteDate(dateStr) || !timeStr) return null;
+    return new Date(`${dateStr}T${timeStr}:00`);
+  };
+
+  const validate = (forceValidation: boolean = false) => {
+    if (!startDate || !startTime || !endDate || !endTime || quantity === '' || quantity <= 0) {
       setPricing(null);
       setError('');
-      return;
+      return false;
+    }
+
+    const start = getCombinedDateTime(startDate, startTime);
+    const end = getCombinedDateTime(endDate, endTime);
+
+    // While typing, if either date/time isn't fully complete, delay validation
+    if (!forceValidation && (!start || !end)) {
+      setPricing(null);
+      setError('');
+      return false;
+    }
+
+    if (!start || !end) {
+      setError('Please complete all date and time selections.');
+      setPricing(null);
+      return false;
     }
 
     try {
       const result = calculateRentalPrice(
         { rentalPricePerDay: product.rentalPricePerDay, depositAmount: product.depositAmount, stockQty: product.stockQty },
-        new Date(startDate),
-        new Date(endDate),
+        start,
+        end,
         quantity as number
       );
       setPricing(result);
       setError('');
-    } catch (err: any) {
-      setError(err.message || 'Invalid selection');
+      return true;
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Invalid selection');
       setPricing(null);
+      return false;
     }
-  }, [startDate, endDate, quantity, product]);
+  };
+
+  useEffect(() => {
+    validate(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, startTime, endDate, endTime, quantity, product]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (error || !pricing || quantity === '') return;
+    const isValid = validate(true);
+    if (!isValid || quantity === '') return;
+
+    const start = getCombinedDateTime(startDate, startTime)!;
+    const end = getCombinedDateTime(endDate, endTime)!;
 
     addToCart({
       product,
-      startDate: new Date(startDate).toISOString(),
-      endDate: new Date(endDate).toISOString(),
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
       quantity: quantity as number,
-      days: pricing.days,
-      rentalTotal: pricing.rentalTotal,
-      depositTotal: pricing.depositTotal,
+      days: pricing!.days, // This now actually means billable days based on hourly calculation
+      rentalTotal: pricing!.rentalTotal,
+      depositTotal: pricing!.depositTotal,
     });
     
     router.push('/cart');
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mt-8 space-y-6 bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-      <h3 className="text-lg font-medium text-gray-900">Rental Options</h3>
-      
-      {error && (
-        <div className="rounded bg-red-100 p-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+    <Card className="shadow-lg border-primary/10">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-xl">
+          <CalendarDays className="h-5 w-5 text-primary" />
+          Rental Options
+        </CardTitle>
+        <CardDescription>Select your exact dates, times, and quantity to proceed.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive border border-destructive/20 font-medium">
+              {error}
+            </div>
+          )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Start Date</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">End Date</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            required
-          />
-        </div>
-      </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">Start Date</label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                onBlur={() => validate(true)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">Start Time</label>
+              <Input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                onBlur={() => validate(true)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">End Date</label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                onBlur={() => validate(true)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">End Time</label>
+              <Input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                onBlur={() => validate(true)}
+                required
+              />
+            </div>
+          </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Quantity (Available: {product.stockQty})</label>
-        <input
-          type="number"
-          min="1"
-          max={product.stockQty}
-          value={quantity}
-          onChange={(e) => {
-            const val = e.target.value;
-            setQuantity(val === '' ? '' : parseInt(val, 10));
-          }}
-          className="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          required
-        />
-      </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium leading-none">Quantity (Available: {product.stockQty})</label>
+            <Input
+              type="number"
+              min="1"
+              max={product.stockQty}
+              value={quantity}
+              onChange={(e) => {
+                const val = e.target.value;
+                setQuantity(val === '' ? '' : parseInt(val, 10));
+              }}
+              required
+            />
+          </div>
 
-      {pricing && (
-        <div className="rounded-md bg-gray-50 p-4 space-y-2 text-sm text-gray-800 border border-gray-200">
-          <div className="flex justify-between">
-            <span>Duration:</span>
-            <span>{pricing.days} day(s)</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Rental Cost (₹{product.rentalPricePerDay} × {pricing.days} × {quantity}):</span>
-            <span>₹{pricing.rentalTotal}</span>
-          </div>
-          <div className="flex justify-between text-gray-500">
-            <span>Refundable Deposit (₹{product.depositAmount} × {quantity}):</span>
-            <span>₹{pricing.depositTotal}</span>
-          </div>
-          <div className="flex justify-between font-bold text-lg pt-2 border-t border-gray-300">
-            <span>Grand Total:</span>
-            <span>₹{pricing.grandTotal}</span>
-          </div>
-        </div>
-      )}
+          {pricing && (
+            <div className="rounded-lg bg-muted p-4 space-y-3 text-sm border">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Billable Duration</span>
+                <span className="font-medium">{pricing.days} day(s)</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Rental Cost (₹{product.rentalPricePerDay} × {pricing.days} × {quantity})</span>
+                <span className="font-medium">₹{pricing.rentalTotal}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Refundable Deposit</span>
+                <span className="font-medium">₹{pricing.depositTotal}</span>
+              </div>
+              <div className="flex justify-between items-center pt-3 border-t font-bold text-lg">
+                <span>Total Upfront</span>
+                <span className="text-primary">₹{pricing.grandTotal}</span>
+              </div>
+            </div>
+          )}
 
-      <button
-        type="submit"
-        disabled={!!error || !pricing}
-        className="w-full rounded-md bg-blue-600 py-3 px-4 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-300 disabled:cursor-not-allowed text-lg font-medium transition"
-      >
-        Add to Cart
-      </button>
-    </form>
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full text-base"
+            disabled={!!error || !pricing}
+          >
+            <ShoppingCart className="mr-2 h-5 w-5" />
+            Add to Cart
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

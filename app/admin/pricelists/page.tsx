@@ -1,67 +1,78 @@
-import { requireAdminOnly } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Plus, Tags } from 'lucide-react';
 
 export default async function AdminPricelistsPage() {
-  await requireAdminOnly();
 
   const pricelists = await prisma.pricelist.findMany({
     orderBy: { createdAt: 'desc' },
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Pricelists</h1>
-        <Link 
-          href="/admin/pricelists/new" 
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-        >
-          Create Custom Pricelist
-        </Link>
+    <div className="flex flex-col space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Pricelists</h1>
+          <p className="text-muted-foreground mt-2">Manage discount tiers and pricing rules.</p>
+        </div>
+        <Button asChild>
+          <Link href="/admin/pricelists/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Create Pricelist
+          </Link>
+        </Button>
       </div>
       
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discount %</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {pricelists.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-4 text-center text-gray-500 text-sm">
-                  No pricelists found. Create a default one first.
-                </td>
-              </tr>
-            ) : pricelists.map((list) => (
-              <tr key={list.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{list.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{list.discountPercent}%</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {list.isDefault ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Default
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      Custom
-                    </span>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {format(new Date(list.createdAt), 'MMM d, yyyy')}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {pricelists.length === 0 ? (
+        <div className="flex min-h-[400px] flex-col items-center justify-center rounded-xl border border-dashed p-8 text-center animate-in fade-in-50">
+          <Tags className="h-10 w-10 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold">No pricelists found</h3>
+          <p className="mb-4 mt-2 text-sm text-muted-foreground">
+            Get started by creating a default pricelist.
+          </p>
+          <Button asChild variant="outline">
+            <Link href="/admin/pricelists/new">Create First Pricelist</Link>
+          </Button>
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Discount %</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pricelists.map((list) => (
+                  <TableRow key={list.id}>
+                    <TableCell className="font-medium">{list.name}</TableCell>
+                    <TableCell>{list.discountPercent}%</TableCell>
+                    <TableCell>
+                      {list.isDefault ? (
+                        <Badge variant="success">Default</Badge>
+                      ) : (
+                        <Badge variant="secondary">Custom</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {format(new Date(list.createdAt), 'MMM d, yyyy')}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

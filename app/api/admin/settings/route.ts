@@ -18,9 +18,9 @@ export async function GET() {
       create: { id: 'global', lateFeeDefault: 20, gracePeriodHours: 24 }
     });
     return NextResponse.json(settings);
-  } catch (error: any) {
-    if (error.message === 'Forbidden') return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    if ((error instanceof Error ? error.message : String(error)) === 'Forbidden') return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    return NextResponse.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500 });
   }
 }
 
@@ -41,8 +41,8 @@ export async function PUT(request: Request) {
     });
 
     return NextResponse.json(settings);
-  } catch (error: any) {
-    if (error.message === 'Forbidden') return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    if ((error instanceof Error ? error.message : String(error)) === 'Forbidden') return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    return NextResponse.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: 500 });
   }
 }

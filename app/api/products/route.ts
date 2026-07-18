@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireVendorAccess, requireAdminOnly, AuthError } from '@/lib/auth';
+import { requireVendorAccess, AuthError } from '@/lib/auth';
 import { z } from 'zod';
 
 const createProductSchema = z.object({
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ product }, { status: 201 });
   } catch (error) {
     if (error instanceof AuthError) {
-      return NextResponse.json({ error: error.message }, { status: error.statusCode });
+      return NextResponse.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: error.statusCode });
     }
     console.error(error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

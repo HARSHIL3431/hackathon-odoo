@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import { startOfDay, endOfDay } from 'date-fns';
 import DashboardWidget from '@/components/DashboardWidget';
+import { AlertCircle, Clock, CheckCircle2, IndianRupee, Wallet, FileWarning } from 'lucide-react';
+import { OrderState } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,11 +15,10 @@ export default async function VendorDashboardPage() {
     if (error instanceof AuthError) {
       if (error.statusCode === 401) redirect('/login');
       return (
-        <div className="flex h-screen items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-red-600">403</h1>
-            <p className="mt-2 text-lg text-gray-700">Vendor access required</p>
-          </div>
+        <div className="flex h-full min-h-[400px] flex-col items-center justify-center p-8 text-center">
+          <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+          <h1 className="text-2xl font-bold">Access Denied (403)</h1>
+          <p className="mt-2 text-muted-foreground">Vendor access is required to view this dashboard.</p>
         </div>
       );
     }
@@ -28,21 +29,57 @@ export default async function VendorDashboardPage() {
   const todayStart = startOfDay(now);
   const todayEnd = endOfDay(now);
 
+  const rentedStates = [OrderState.PickedUp, OrderState.Active];
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
   // Real DB aggregates — fetched directly for performance
   const [
-    activeRentals,
+    upcomingBookings,
+    readyForPickup,
+    currentlyRented,
     dueToday,
     overdue,
+    completedThisMonth,
     revenueResult,
     depositsResult,
     lateFeesResult,
   ] = await Promise.all([
-    prisma.rentalOrder.count({ where: { state: 'Active' } }),
     prisma.rentalOrder.count({
-      where: { state: 'Active', endDate: { gte: todayStart, lte: todayEnd } },
+      where: {
+        state: OrderState.Paid,
+        startDate: { gt: todayEnd },
+      },
     }),
     prisma.rentalOrder.count({
-      where: { state: 'Active', endDate: { lt: todayStart } },
+      where: {
+        state: OrderState.Paid,
+        startDate: { lte: todayEnd },
+      },
+    }),
+    prisma.rentalOrder.count({
+      where: {
+        state: { in: rentedStates },
+        startDate: { lte: todayEnd },
+        endDate: { gte: todayStart },
+      },
+    }),
+    prisma.rentalOrder.count({
+      where: {
+        state: { in: rentedStates },
+        endDate: { gte: todayStart, lte: todayEnd },
+      },
+    }),
+    prisma.rentalOrder.count({
+      where: {
+        state: { in: rentedStates },
+        endDate: { lt: todayStart },
+      },
+    }),
+    prisma.rentalOrder.count({
+      where: {
+        state: OrderState.Settled,
+        updatedAt: { gte: firstDayOfMonth },
+      },
     }),
     prisma.payment.aggregate({
       where: { status: 'Success' },
@@ -63,19 +100,64 @@ export default async function VendorDashboardPage() {
   const lateFeesCollected = lateFeesResult._sum.penaltyAmount ?? 0;
 
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Vendor Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">Overview of rental operations</p>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
+        <p className="text-muted-foreground mt-2">Monitor rental operations and financial metrics.</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <DashboardWidget label="Active Rentals" value={activeRentals} color="text-amber-600" />
-        <DashboardWidget label="Due Today" value={dueToday} color="text-blue-600" />
-        <DashboardWidget label="Overdue" value={overdue} color="text-red-600" />
-        <DashboardWidget label="Total Revenue" value={`₹${revenue.toLocaleString()}`} color="text-green-600" />
-        <DashboardWidget label="Deposits Held" value={`₹${depositsHeld.toLocaleString()}`} />
-        <DashboardWidget label="Late Fees Collected" value={`₹${lateFeesCollected.toLocaleString()}`} />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <DashboardWidget 
+          label="Upcoming Bookings" 
+          value={upcomingBookings} 
+          icon={<Clock className="text-blue-500" />} 
+          color="text-blue-500"
+        />
+        <DashboardWidget 
+          label="Ready for Pickup" 
+          value={readyForPickup} 
+          icon={<AlertCircle className="text-purple-500" />} 
+          color="text-purple-500"
+        />
+        <DashboardWidget 
+          label="Currently Rented" 
+          value={currentlyRented} 
+          icon={<CheckCircle2 className="text-primary" />} 
+          color="text-primary"
+        />
+        <DashboardWidget 
+          label="Due Today" 
+          value={dueToday} 
+          icon={<Clock className="text-amber-500" />} 
+          color="text-amber-500" 
+        />
+        <DashboardWidget 
+          label="Overdue" 
+          value={overdue} 
+          icon={<AlertCircle className="text-destructive" />} 
+          color="text-destructive" 
+        />
+        <DashboardWidget 
+          label="Completed This Month" 
+          value={completedThisMonth} 
+          icon={<CheckCircle2 className="text-green-500" />} 
+          color="text-green-500" 
+        />
+        <DashboardWidget 
+          label="Total Revenue" 
+          value={`₹${revenue.toLocaleString()}`} 
+          icon={<IndianRupee className="text-green-600" />}
+        />
+        <DashboardWidget 
+          label="Deposits Held" 
+          value={`₹${depositsHeld.toLocaleString()}`} 
+          icon={<Wallet className="text-muted-foreground" />}
+        />
+        <DashboardWidget 
+          label="Late Fees Collected" 
+          value={`₹${lateFeesCollected.toLocaleString()}`} 
+          icon={<FileWarning className="text-muted-foreground" />}
+        />
       </div>
     </div>
   );

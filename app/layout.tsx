@@ -5,6 +5,8 @@ import { getSession } from "@/lib/auth";
 import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
 import { Role } from "@prisma/client";
+import { Package } from "lucide-react";
+import { Toaster } from "react-hot-toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,53 +38,68 @@ export default async function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">
+      <body className="min-h-full flex flex-col bg-background text-foreground">
         <CartProvider>
-          <header className="bg-white shadow-sm">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <div className="flex h-16 justify-between items-center">
-                <div className="flex items-center">
-                  <Link href="/" className="text-xl font-bold text-blue-600">
+          <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="container flex h-14 items-center mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="mr-4 hidden md:flex">
+                <Link href="/" className="mr-6 flex items-center space-x-2">
+                  <Package className="h-6 w-6 text-primary" />
+                  <span className="hidden font-bold sm:inline-block tracking-tight text-lg">
                     RentalApp
+                  </span>
+                </Link>
+                <nav className="flex items-center space-x-6 text-sm font-medium">
+                  <Link href="/" className="transition-colors hover:text-foreground/80 text-foreground/60">
+                    Catalog
                   </Link>
                   {(session?.role === Role.VENDOR || session?.role === Role.ADMIN) && (
-                    <Link href="/vendor/dashboard" className="ml-8 text-sm font-medium text-gray-700 hover:text-blue-600">
-                      Vendor Dashboard
+                    <Link href="/vendor/dashboard" className="transition-colors hover:text-foreground/80 text-foreground/60">
+                      Vendor
                     </Link>
                   )}
                   {session?.role === Role.ADMIN && (
-                    <Link href="/admin/dashboard" className="ml-8 text-sm font-medium text-gray-700 hover:text-blue-600">
-                      Admin Dashboard
+                    <Link href="/admin/dashboard" className="transition-colors hover:text-foreground/80 text-foreground/60">
+                      Admin
                     </Link>
                   )}
+                </nav>
+              </div>
+
+              <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+                <div className="w-full flex-1 md:w-auto md:flex-none">
+                  {/* Future search could go here */}
                 </div>
-                <div className="flex items-center space-x-6">
+                <nav className="flex items-center space-x-4">
                   <CartBadge />
+                  
                   {session && (session.role === Role.CUSTOMER || session.role === Role.VENDOR || session.role === Role.ADMIN) && (
-                    <Link href="/orders" className="text-sm font-medium text-gray-700 hover:text-blue-600">
+                    <Link href="/orders" className="text-sm font-medium text-muted-foreground hover:text-foreground">
                       My Orders
                     </Link>
                   )}
+                  
                   {session ? (
-                    <div className="flex items-center space-x-4 border-l pl-6">
-                      <span className="text-sm text-gray-500">Welcome, {session.name}</span>
+                    <div className="flex items-center space-x-4 ml-4 pl-4 border-l">
+                      <span className="text-sm text-muted-foreground font-medium">{session.name}</span>
                       <LogoutButton />
                     </div>
                   ) : (
-                    <div className="flex items-center space-x-4 border-l pl-6">
-                      <Link href="/login" className="text-sm font-medium text-gray-700 hover:text-blue-600">
+                    <div className="flex items-center space-x-4 ml-4 pl-4 border-l">
+                      <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground">
                         Login
                       </Link>
-                      <Link href="/register" className="text-sm font-medium rounded-md bg-blue-600 px-3 py-2 text-white hover:bg-blue-700">
+                      <Link href="/register" className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2">
                         Register
                       </Link>
                     </div>
                   )}
-                </div>
+                </nav>
               </div>
             </div>
           </header>
-          <main className="flex-1 mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">{children}</main>
+          <main className="flex-1 w-full flex flex-col">{children}</main>
+          <Toaster position="top-right" />
         </CartProvider>
       </body>
     </html>

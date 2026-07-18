@@ -1,6 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { AlertCircle, Check, X, Shield, ShieldAlert, User } from 'lucide-react';
 
 type UserData = {
   id: string;
@@ -28,8 +32,8 @@ export default function UserList({ initialUsers }: { initialUsers: UserData[] })
       if (!res.ok) throw new Error('Failed to update user');
       
       setUsers(users.map(u => u.id === id ? { ...u, isApproved: !currentStatus } : u));
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)));
     } finally {
       setLoadingId(null);
     }
@@ -47,65 +51,87 @@ export default function UserList({ initialUsers }: { initialUsers: UserData[] })
       if (!res.ok) throw new Error('Failed to update role');
       
       setUsers(users.map(u => u.id === id ? { ...u, role: newRole } : u));
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)));
     } finally {
       setLoadingId(null);
     }
   };
 
   return (
-    <div className="overflow-x-auto">
+    <div className="w-full">
       {error && (
-        <div className="p-4 bg-red-50 text-red-700 border-b border-red-200">
+        <div className="p-4 bg-destructive/15 text-destructive border-b border-destructive/20 flex items-center gap-2">
+          <AlertCircle className="h-4 w-4" />
           {error}
         </div>
       )}
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>User Details</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {users.map((user) => (
-            <tr key={user.id}>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.name}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                <select
-                  value={user.role}
-                  onChange={(e) => changeRole(user.id, e.target.value)}
-                  disabled={loadingId === user.id}
-                  className="mt-1 block w-full pl-3 pr-10 py-1 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                >
-                  <option value="CUSTOMER">Customer</option>
-                  <option value="VENDOR">Vendor</option>
-                  <option value="ADMIN">Admin</option>
-                </select>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.isApproved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                  {user.isApproved ? 'Approved' : 'Pending'}
-                </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                <button
+            <TableRow key={user.id} className={loadingId === user.id ? "opacity-50 pointer-events-none" : ""}>
+              <TableCell>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                    {user.role === 'ADMIN' ? <ShieldAlert className="h-5 w-5 text-muted-foreground" /> : 
+                     user.role === 'VENDOR' ? <Shield className="h-5 w-5 text-muted-foreground" /> : 
+                     <User className="h-5 w-5 text-muted-foreground" />}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{user.name}</span>
+                    <span className="text-xs text-muted-foreground">{user.email}</span>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="relative w-32">
+                  <select
+                    value={user.role}
+                    onChange={(e) => changeRole(user.id, e.target.value)}
+                    disabled={loadingId === user.id}
+                    className="flex h-9 w-full appearance-none rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="CUSTOMER">Customer</option>
+                    <option value="VENDOR">Vendor</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+                    <svg className="h-4 w-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                <Badge variant={user.isApproved ? "success" : "warning"}>
+                  {user.isApproved ? "Approved" : "Pending"}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-right">
+                <Button
+                  variant={user.isApproved ? "outline" : "default"}
+                  size="sm"
                   onClick={() => toggleApproval(user.id, user.isApproved)}
                   disabled={loadingId === user.id}
-                  className="text-blue-600 hover:text-blue-900 disabled:opacity-50"
+                  className={user.isApproved ? "text-destructive hover:text-destructive hover:bg-destructive/10" : ""}
                 >
-                  {user.isApproved ? 'Revoke Access' : 'Approve'}
-                </button>
-              </td>
-            </tr>
+                  {user.isApproved ? (
+                    <><X className="mr-1 h-4 w-4" /> Revoke</>
+                  ) : (
+                    <><Check className="mr-1 h-4 w-4" /> Approve</>
+                  )}
+                </Button>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

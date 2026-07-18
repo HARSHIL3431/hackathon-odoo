@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { useCart, CartItem } from './CartProvider';
 import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { CreditCard, AlertCircle, ShoppingBag } from 'lucide-react';
 
 export default function CheckoutForm() {
   const { items, clearCart } = useCart();
@@ -54,7 +57,7 @@ export default function CheckoutForm() {
       router.push('/orders');
       router.refresh();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'An error occurred during checkout.';
+      const message = err instanceof Error ? (err instanceof Error ? err.message : String(err)) : 'An error occurred during checkout.';
       setError(message);
       setLoading(false);
     }
@@ -62,75 +65,102 @@ export default function CheckoutForm() {
 
   if (items.length === 0) {
     return (
-      <div className="rounded-md bg-yellow-50 p-4 mt-6">
-        <p className="text-sm text-yellow-700">Your cart is empty. Please add items before checking out.</p>
+      <div className="flex flex-col items-center justify-center p-12 text-center rounded-xl border border-dashed bg-muted/50">
+        <ShoppingBag className="h-12 w-12 text-muted-foreground mb-4" />
+        <h3 className="text-lg font-semibold">Your cart is empty</h3>
+        <p className="text-sm text-muted-foreground mt-2">
+          Please add items to your cart before proceeding to checkout.
+        </p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-8 space-y-6 bg-white p-6 rounded-lg border border-gray-200 shadow-sm max-w-2xl mx-auto">
-      <h3 className="text-xl font-medium text-gray-900">Checkout</h3>
+    <Card className="max-w-2xl mx-auto shadow-sm">
+      <CardHeader>
+        <CardTitle className="text-2xl">Payment Details</CardTitle>
+        <CardDescription>All transactions are secure and encrypted.</CardDescription>
+      </CardHeader>
       
-      {error && (
-        <div className="rounded bg-red-100 p-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      <div>
-        <h4 className="text-md font-medium text-gray-700 mb-3">Order Summary</h4>
-        <div className="space-y-2 border-b border-gray-200 pb-4 mb-4">
-          {items.map((item: CartItem, idx: number) => (
-            <div key={idx} className="flex justify-between text-sm">
-              <span>{item.quantity}x {item.product.name} ({item.days} days)</span>
-              <span>₹{item.rentalTotal + item.depositTotal}</span>
+      <CardContent>
+        <form id="checkout-form" onSubmit={handleSubmit} className="space-y-8">
+          {error && (
+            <div className="flex items-center gap-2 rounded-md bg-destructive/15 p-4 text-sm text-destructive border border-destructive/20">
+              <AlertCircle className="h-5 w-5" />
+              <p>{error}</p>
             </div>
-          ))}
-        </div>
-        
-        <div className="space-y-1 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-600">Total Rental</span>
-            <span>₹{totalAmount}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Total Deposit</span>
-            <span>₹{totalDeposit}</span>
-          </div>
-          <div className="flex justify-between font-bold text-lg pt-2 mt-2 border-t border-gray-200">
-            <span>Grand Total</span>
-            <span>₹{grandTotal}</span>
-          </div>
-        </div>
-      </div>
+          )}
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Payment Method</label>
-        <select
-          value={method}
-          onChange={(e) => setMethod(e.target.value)}
-          className="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm focus:border-blue-500 focus:outline-none"
+          <div className="space-y-4 rounded-lg bg-muted/50 p-6 border">
+            <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Order Summary</h4>
+            <div className="space-y-3 divide-y divide-border">
+              {items.map((item: CartItem, idx: number) => (
+                <div key={idx} className="flex justify-between text-sm pt-3 first:pt-0 border-0">
+                  <span className="font-medium">{item.quantity}x {item.product.name} <span className="text-muted-foreground font-normal">({item.days} days)</span></span>
+                  <span>₹{item.rentalTotal + item.depositTotal}</span>
+                </div>
+              ))}
+            </div>
+            
+            <div className="space-y-2 text-sm pt-4 border-t">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Rental</span>
+                <span>₹{totalAmount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Deposit</span>
+                <span>₹{totalDeposit}</span>
+              </div>
+              <div className="flex justify-between font-bold text-lg pt-4 mt-4 border-t">
+                <span>Grand Total</span>
+                <span className="text-primary">₹{grandTotal}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <label className="text-sm font-medium leading-none">Payment Method</label>
+            <div className="relative">
+              <select
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+                className="flex h-10 w-full appearance-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={loading}
+              >
+                <option value="Credit Card">Credit Card</option>
+                <option value="Debit Card">Debit Card</option>
+                <option value="UPI">UPI</option>
+                <option value="Cash at Store">Cash at Store (will fail)</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                <svg className="h-4 w-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+            </div>
+          </div>
+        </form>
+      </CardContent>
+      
+      <CardFooter className="bg-muted/20 border-t pt-6">
+        <Button
+          type="submit"
+          form="checkout-form"
           disabled={loading}
+          size="lg"
+          className="w-full text-base"
         >
-          <option value="Credit Card">Credit Card</option>
-          <option value="Debit Card">Debit Card</option>
-          <option value="UPI">UPI</option>
-          <option value="Cash at Store">Cash at Store (will fail — demo)</option>
-        </select>
-      </div>
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-md bg-blue-600 py-3 px-4 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-400 disabled:cursor-not-allowed text-lg font-medium transition flex justify-center items-center"
-      >
-        {loading ? (
-          <span className="animate-pulse">Processing Payment...</span>
-        ) : (
-          `Pay ₹${grandTotal} Now`
-        )}
-      </button>
-    </form>
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-r-transparent"></span>
+              Processing Payment...
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Pay ₹{grandTotal}
+            </span>
+          )}
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }

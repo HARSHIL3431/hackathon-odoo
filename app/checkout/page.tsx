@@ -15,8 +15,11 @@ export default async function CheckoutPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">Complete Your Rental</h1>
+    <div className="max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Complete Your Rental</h1>
+        <p className="mt-2 text-muted-foreground">Review your order details and submit payment.</p>
+      </div>
       <CheckoutForm />
     </div>
   );

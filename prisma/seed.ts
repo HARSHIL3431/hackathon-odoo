@@ -8,7 +8,7 @@ async function main() {
   const passwordHash = await bcrypt.hash('password123', 10)
 
   // Seed Admin
-  const admin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'admin@rental.com' },
     update: {},
     create: {
@@ -43,7 +43,7 @@ async function main() {
   })
 
   // Seed Vendor
-  const vendor = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'vendor@rental.com' },
     update: {},
     create: {

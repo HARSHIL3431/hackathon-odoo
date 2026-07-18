@@ -1,34 +1,65 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireVendorAccess, AuthError } from '@/lib/auth';
-import { startOfDay, endOfDay, isBefore } from 'date-fns';
+import { startOfDay, endOfDay } from 'date-fns';
+
+import { OrderState } from '@prisma/client';
 
 export async function GET() {
   try {
     await requireVendorAccess(); // Vendor or Admin
 
     const now = new Date();
-    const todayStart = startOfDay(now);
     const todayEnd = endOfDay(now);
 
-    // Active rentals: state = Active
-    const activeRentals = await prisma.rentalOrder.count({
-      where: { state: 'Active' },
-    });
+    const rentedStates = [OrderState.PickedUp, OrderState.Active];
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Due today: state = Active AND endDate is today
-    const dueToday = await prisma.rentalOrder.count({
+    // 1. Upcoming Bookings (Starts in the future)
+    const upcomingBookings = await prisma.rentalOrder.count({
       where: {
-        state: 'Active',
-        endDate: { gte: todayStart, lte: todayEnd },
+        state: OrderState.Paid,
+        startDate: { gt: now },
       },
     });
 
-    // Overdue: state = Active AND endDate < today
+    // 2. Ready for Pickup (Start time has passed, but not yet picked up)
+    const readyForPickup = await prisma.rentalOrder.count({
+      where: {
+        state: OrderState.Paid,
+        startDate: { lte: now },
+      },
+    });
+
+    // 3. Currently Rented (Picked up, and end time hasn't passed)
+    const currentlyRented = await prisma.rentalOrder.count({
+      where: {
+        state: { in: rentedStates },
+        endDate: { gte: now },
+      },
+    });
+
+    // 4. Due Today (Ends later today, before midnight)
+    const dueToday = await prisma.rentalOrder.count({
+      where: {
+        state: { in: rentedStates },
+        endDate: { gte: now, lte: todayEnd },
+      },
+    });
+
+    // 5. Overdue (Exact end time has passed)
     const overdue = await prisma.rentalOrder.count({
       where: {
-        state: 'Active',
-        endDate: { lt: todayStart },
+        state: { in: rentedStates },
+        endDate: { lt: now },
+      },
+    });
+
+    // 6. Completed This Month
+    const completedThisMonth = await prisma.rentalOrder.count({
+      where: {
+        state: OrderState.Settled,
+        updatedAt: { gte: firstDayOfMonth },
       },
     });
 
@@ -59,16 +90,19 @@ export async function GET() {
     const lateFeesCollected = lateFeesResult._sum.penaltyAmount ?? 0;
 
     return NextResponse.json({
-      activeRentals,
+      upcomingBookings,
+      readyForPickup,
+      currentlyRented,
       dueToday,
       overdue,
+      completedThisMonth,
       revenue,
       depositsHeld,
       lateFeesCollected,
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      return NextResponse.json({ error: error.message }, { status: error.statusCode });
+      return NextResponse.json({ error: (error instanceof Error ? error.message : String(error)) }, { status: error.statusCode });
     }
     console.error('Dashboard error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
