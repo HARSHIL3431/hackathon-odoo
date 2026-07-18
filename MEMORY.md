@@ -5,11 +5,14 @@
 ## Status: IN PROGRESS
 
 ## Current Phase
-- [x] Phase 0: Setup & Scaffolding
-- [x] Phase 1: Authentication & Layout
-- [x] Phase 2: Customer Catalog & Cart
-- [ ] Phase 3: Quotation & Checkout (NEXT)
-- [ ] Phase 4: Admin Dashboard & Order Management
+- [x] Phase 0: Setup
+- [x] Phase 1: Authentication
+- [x] Phase 2: Customer Catalog + Cart
+- [x] Phase 3: Checkout + Order Creation
+- [ ] Phase 4: Admin Dashboard
+- [ ] Phase 5: Pickup & Return Flow (Core Graded Logic)
+- [ ] Phase 6: In-Store Quotation Flow
+- [ ] Phase 7: Polish + Demo Prep
 
 ## Database State
 - **Neon PostgreSQL**: Connected successfully via pooled string (`?pgbouncer=true`).
@@ -17,8 +20,11 @@
 - **Seeding**: DB seeded with admin, customers, and products. Prisma client generated.
 - **Prisma Version**: Using Prisma 5 for stability and out-of-the-box support with connection strings.
 
+## Known Issues / Deviations
+- **Next 15 Async Params**: Replaced synchronous `params` destruction with `await params` in dynamic routes to prevent crashes under Next 15 Edge Runtime.
+- **Quantity Unrolling**: Because `RentalOrder` does not have a `quantity` column, Phase 3 unrolls checkout items. A cart item with quantity 3 creates 3 distinct `RentalOrder` rows (and 3 `Payment` rows) within a single transaction. This satisfies the schema without modification and aligns perfectly with strict single-asset state machine tracking (like Odoo stock quants).
+
 ## Currently Working On
-Phase 2 Complete. Waiting for next TASK.md.
 
 ## Known Issues / Blockers
 (none yet)
