@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderState {
+  Draft
+  Confirmed
+  Paid
+  PickedUp
+  Active
+  Returned
+  Settled
+}
+
+enum QuotationType {
+  ONLINE
+  INSTORE
+}
+
+model User {
+  id           String        @id @default(uuid())
+  name         String
+  email        String        @unique
+  passwordHash String
+  role         Role          @default(CUSTOMER)
+  orders       RentalOrder[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Product {
+  id                String        @id @default(uuid())
+  name              String
+  description       String?
+  rentalPricePerDay Float
+  depositAmount     Float
+  lateFeePerDay     Float
+  stockQty          Int
+  orders            RentalOrder[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+model Pricelist {
+  id              String    @id @default(uuid())
+  name            String
+  isDefault       Boolean   @default(false)
+  discountPercent Float     @default(0)
+  validFrom       DateTime?
+  validTo         DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model RentalOrder {
+  id              String        @id @default(uuid())
+  customerId      String
+  customer        User          @relation(fields: [customerId], references: [id])
+  productId       String
+  product         Product       @relation(fields: [productId], references: [id])
+  startDate       DateTime
+  endDate         DateTime
+  state           OrderState    @default(Draft)
+  quotationType   QuotationType @default(ONLINE)
+  totalAmount     Float         @default(0)
+  depositAmount   Float         @default(0)
+  depositRefunded Float         @default(0)
+  penaltyAmount   Float         @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  payments        Payment[]
+}
+
+model Payment {
+  id        String      @id @default(uuid())
+  orderId   String
+  order     RentalOrder @relation(fields: [orderId], references: [id])
+  amount    Float
+  method    String
+  status    String
+  paidAt    DateTime    @default(now())
+}
