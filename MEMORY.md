@@ -7,8 +7,8 @@
 ## Current Phase
 - [x] Phase 0: Setup & Scaffolding
 - [x] Phase 1: Authentication & Layout
-- [ ] Phase 2: User Dashboard & Catalog (NEXT)
-- [ ] Phase 3: Quotation & Checkout
+- [x] Phase 2: Customer Catalog & Cart
+- [ ] Phase 3: Quotation & Checkout (NEXT)
 - [ ] Phase 4: Admin Dashboard & Order Management
 
 ## Database State
@@ -18,7 +18,7 @@
 - **Prisma Version**: Using Prisma 5 for stability and out-of-the-box support with connection strings.
 
 ## Currently Working On
-Phase 1 Complete. Waiting for next TASK.md.
+Phase 2 Complete. Waiting for next TASK.md.
 
 ## Known Issues / Blockers
 (none yet)
