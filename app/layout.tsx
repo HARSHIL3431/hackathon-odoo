@@ -1,30 +1,22 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { getSession } from "@/lib/auth";
 import Link from "next/link";
-import LogoutButton from "@/components/LogoutButton";
+import { Button } from "@/components/ui/Button";
+import { LogOut, Package, Shield, LayoutDashboard } from "lucide-react";
 import { Role } from "@prisma/client";
-import { Package } from "lucide-react";
-import { Toaster } from "react-hot-toast";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata: Metadata = {
-  title: "Rental Management System",
-  description: "Next.js App Router Rental System",
-};
-
+import LogoutButton from "@/components/LogoutButton";
 import { CartProvider } from "@/components/CartProvider";
 import CartBadge from "@/components/CartBadge";
+
+import { Inter } from "next/font/google";
+
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "Rental ERP | Odoo Style",
+  description: "Enterprise Equipment Rental Platform",
+};
 
 export default async function RootLayout({
   children,
@@ -34,72 +26,72 @@ export default async function RootLayout({
   const session = await getSession();
 
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+    <html lang="en" className="h-full">
+      <body
+        className={`${inter.className} antialiased min-h-full flex flex-col bg-background text-foreground`}
+      >
         <CartProvider>
-          <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="container flex h-14 items-center mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="mr-4 hidden md:flex">
-                <Link href="/" className="mr-6 flex items-center space-x-2">
-                  <Package className="h-6 w-6 text-primary" />
-                  <span className="hidden font-bold sm:inline-block tracking-tight text-lg">
-                    RentalApp
-                  </span>
-                </Link>
-                <nav className="flex items-center space-x-6 text-sm font-medium">
-                  <Link href="/" className="transition-colors hover:text-foreground/80 text-foreground/60">
-                    Catalog
-                  </Link>
-                  {(session?.role === Role.VENDOR || session?.role === Role.ADMIN) && (
-                    <Link href="/vendor/dashboard" className="transition-colors hover:text-foreground/80 text-foreground/60">
-                      Vendor
-                    </Link>
-                  )}
-                  {session?.role === Role.ADMIN && (
-                    <Link href="/admin/dashboard" className="transition-colors hover:text-foreground/80 text-foreground/60">
-                      Admin
-                    </Link>
-                  )}
-                </nav>
-              </div>
-
-              <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-                <div className="w-full flex-1 md:w-auto md:flex-none">
-                  {/* Future search could go here */}
+          <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 shadow-sm transition-all">
+            <div className="container mx-auto flex h-16 max-w-7xl items-center px-4 md:px-6">
+              <Link href="/" className="flex items-center gap-2 group mr-6">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground group-hover:scale-105 transition-transform shadow-sm">
+                  <Package className="h-5 w-5" />
                 </div>
-                <nav className="flex items-center space-x-4">
-                  <CartBadge />
-                  
-                  {session && (session.role === Role.CUSTOMER || session.role === Role.VENDOR || session.role === Role.ADMIN) && (
-                    <Link href="/orders" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-                      My Orders
-                    </Link>
-                  )}
-                  
-                  {session ? (
-                    <div className="flex items-center space-x-4 ml-4 pl-4 border-l">
-                      <span className="text-sm text-muted-foreground font-medium">{session.name}</span>
-                      <LogoutButton />
+                <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 hidden sm:inline-block">
+                  Rental ERP
+                </span>
+              </Link>
+
+              <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
+                <Link href="/" className="transition-colors hover:text-primary text-muted-foreground">
+                  Catalog
+                </Link>
+                {(session?.role === Role.VENDOR || session?.role === Role.ADMIN) && (
+                  <Link href="/vendor/dashboard" className="transition-colors hover:text-primary text-muted-foreground flex items-center gap-1.5">
+                    <LayoutDashboard className="h-4 w-4" /> Vendor
+                  </Link>
+                )}
+                {session?.role === Role.ADMIN && (
+                  <Link href="/admin/dashboard" className="transition-colors hover:text-primary text-muted-foreground flex items-center gap-1.5">
+                    <Shield className="h-4 w-4" /> Admin
+                  </Link>
+                )}
+              </nav>
+
+              <div className="flex flex-1 items-center justify-end space-x-4 ml-auto">
+                {/* Cart is ONLY shown for customers */}
+                {session?.role === Role.CUSTOMER && <CartBadge />}
+
+                {session && (
+                  <Link href="/orders" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors hidden sm:block">
+                    My Orders
+                  </Link>
+                )}
+
+                {session ? (
+                  <div className="flex items-center space-x-4 pl-4 sm:border-l border-border/50">
+                    <div className="hidden sm:flex flex-col items-end">
+                      <span className="text-sm font-semibold">{session.name}</span>
+                      <span className="text-[10px] text-muted-foreground font-mono uppercase">{session.role}</span>
                     </div>
-                  ) : (
-                    <div className="flex items-center space-x-4 ml-4 pl-4 border-l">
-                      <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-                        Login
-                      </Link>
-                      <Link href="/register" className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2">
-                        Register
-                      </Link>
-                    </div>
-                  )}
-                </nav>
+                    <LogoutButton />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" asChild className="hidden sm:inline-flex hover:bg-muted font-medium">
+                      <Link href="/login">Sign In</Link>
+                    </Button>
+                    <Button asChild className="shadow-sm hover:shadow transition-all hover:-translate-y-0.5 font-medium">
+                      <Link href="/register">Get Started</Link>
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </header>
-          <main className="flex-1 w-full flex flex-col">{children}</main>
-          <Toaster position="top-right" />
+          <main className="flex-1 w-full bg-background/50">
+            {children}
+          </main>
         </CartProvider>
       </body>
     </html>

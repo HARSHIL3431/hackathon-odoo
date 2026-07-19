@@ -175,7 +175,7 @@ export default async function VendorOrdersPage({
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/orders/${order.id}`}>
+                        <Link href={`/vendor/orders/${order.id}`}>
                           <Eye className="mr-2 h-4 w-4" />
                           View
                         </Link>

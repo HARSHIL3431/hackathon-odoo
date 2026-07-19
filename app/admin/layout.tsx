@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { Role } from '@prisma/client';
-import { LayoutDashboard, Users, Tags, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Tags, Settings, Package, ClipboardList } from 'lucide-react';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -21,6 +21,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link href="/admin/dashboard" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted">
               <LayoutDashboard className="h-4 w-4" />
               Overview
+            </Link>
+            <Link href="/admin/products" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted">
+              <Package className="h-4 w-4" />
+              Inventory
+            </Link>
+            <Link href="/admin/orders" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted">
+              <ClipboardList className="h-4 w-4" />
+              Orders
             </Link>
             <Link href="/admin/users" className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted">
               <Users className="h-4 w-4" />
