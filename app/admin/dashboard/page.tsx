@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { requireAdminAccess } from '@/lib/auth';
 import DashboardWidget from '@/components/DashboardWidget';
 import { Role } from '@prisma/client';
 import { Users, UserCheck, AlertCircle, Tags, Banknote, Package, ShoppingCart } from 'lucide-react';
@@ -6,6 +7,8 @@ import { Users, UserCheck, AlertCircle, Tags, Banknote, Package, ShoppingCart } 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboardPage() {
+  await requireAdminAccess();
+
   const [
     totalUsers,
     totalVendors,

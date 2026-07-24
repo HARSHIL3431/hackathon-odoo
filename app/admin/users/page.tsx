@@ -1,8 +1,10 @@
 import prisma from '@/lib/prisma';
+import { requireAdminAccess } from '@/lib/auth';
 import UserList from './UserList';
 import { Card, CardContent } from '@/components/ui/Card';
 
 export default async function AdminUsersPage() {
+  await requireAdminAccess();
 
   const users = await prisma.user.findMany({
     orderBy: { createdAt: 'desc' },

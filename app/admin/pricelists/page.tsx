@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { requireAdminAccess } from '@/lib/auth';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
@@ -8,6 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Plus, Tags } from 'lucide-react';
 
 export default async function AdminPricelistsPage() {
+  await requireAdminAccess();
 
   const pricelists = await prisma.pricelist.findMany({
     orderBy: { createdAt: 'desc' },

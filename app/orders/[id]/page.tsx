@@ -3,7 +3,7 @@ import { requireCustomerAccess } from '@/lib/auth';
 import { notFound } from 'next/navigation';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { ArrowLeft, CalendarDays, IndianRupee, CreditCard, Box, Download } from 'lucide-react';
+import { ArrowLeft, CalendarDays, IndianRupee, CreditCard, Box } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
@@ -51,14 +51,6 @@ export default async function OrderDetailPage({
           <p className="text-muted-foreground font-mono text-sm mt-1">#{order.id.toUpperCase()}</p>
         </div>
         <div className="flex items-center gap-3">
-          {order.state !== 'Draft' && (
-            <Button variant="outline" className="bg-background" asChild>
-              <a href={`/api/orders/${order.id}/pdf?type=customer`} target="_blank" download>
-                <Download className="mr-2 h-4 w-4" />
-                Download Invoice
-              </a>
-            </Button>
-          )}
           <OrderStatusBadge state={order.state} />
         </div>
       </div>

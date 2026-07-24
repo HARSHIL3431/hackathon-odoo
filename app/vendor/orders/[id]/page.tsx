@@ -5,7 +5,7 @@ import OrderStatusBadge from '@/components/OrderStatusBadge';
 import { format, differenceInHours } from 'date-fns';
 import { OrderState } from '@prisma/client';
 import { TransitionButtons } from './TransitionButtons';
-import { Download, ArrowLeft, Package, User, CalendarDays, IndianRupee } from 'lucide-react';
+import { ArrowLeft, Package, User, CalendarDays, IndianRupee } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import OrderTimeline from '@/components/OrderTimeline';
@@ -64,12 +64,6 @@ export default async function VendorOrderDetailPage({
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="bg-background" asChild>
-            <a href={`/api/orders/${order.id}/pdf?type=vendor`} target="_blank" download>
-              <Download className="mr-2 h-4 w-4" />
-              Download Rental Agreement
-            </a>
-          </Button>
           <OrderStatusBadge state={order.state} />
         </div>
       </div>

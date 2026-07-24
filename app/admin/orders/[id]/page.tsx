@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { ArrowLeft, Download, CreditCard, CalendarDays, User, Package, IndianRupee } from 'lucide-react';
+import { ArrowLeft, CreditCard, CalendarDays, User, Package, IndianRupee } from 'lucide-react';
 import { format } from 'date-fns';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 import OrderTimeline from '@/components/OrderTimeline';
@@ -46,12 +46,6 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
           <p className="text-muted-foreground font-mono text-sm mt-1">ID: {order.id}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button asChild>
-            <a href={`/api/orders/${order.id}/pdf?type=admin`} target="_blank" download>
-              <Download className="mr-2 h-4 w-4" />
-              Download Full Audit Record
-            </a>
-          </Button>
           <OrderStatusBadge state={order.state} />
         </div>
       </div>

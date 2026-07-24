@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Product } from '@prisma/client';
 import { calculateRentalPrice, PricingResult } from '@/lib/pricing';
 import { useCart } from './CartProvider';
@@ -18,8 +18,6 @@ export default function AddToCartForm({ product }: { product: Product }) {
   const [endDate, setEndDate] = useState('');
   const [endTime, setEndTime] = useState('17:00');
   const [quantity, setQuantity] = useState<number | ''>(1);
-  const [error, setError] = useState('');
-  const [pricing, setPricing] = useState<PricingResult | null>(null);
 
   const isCompleteDate = (value: string) => {
     if (!value) return false;
@@ -34,67 +32,44 @@ export default function AddToCartForm({ product }: { product: Product }) {
     return new Date(`${dateStr}T${timeStr}:00`);
   };
 
-  const validate = (forceValidation: boolean = false) => {
-    if (!startDate || !startTime || !endDate || !endTime || quantity === '' || quantity <= 0) {
-      setPricing(null);
-      setError('');
-      return false;
+  // Calculate pricing & validation errors on render (Derived State)
+  let pricing: PricingResult | null = null;
+  let error = '';
+
+  const start = getCombinedDateTime(startDate, startTime);
+  const end = getCombinedDateTime(endDate, endTime);
+
+  if (startDate && startTime && endDate && endTime && quantity !== '' && quantity > 0) {
+    if (start && end) {
+      if (end <= start) {
+        error = 'End time must be after start time.';
+      } else {
+        try {
+          pricing = calculateRentalPrice(
+            { rentalPricePerDay: product.rentalPricePerDay, depositAmount: product.depositAmount, stockQty: product.stockQty },
+            start,
+            end,
+            quantity as number
+          );
+        } catch (err: unknown) {
+          error = (err instanceof Error ? err.message : String(err)) || 'Invalid selection';
+        }
+      }
     }
-
-    const start = getCombinedDateTime(startDate, startTime);
-    const end = getCombinedDateTime(endDate, endTime);
-
-    // While typing, if either date/time isn't fully complete, delay validation
-    if (!forceValidation && (!start || !end)) {
-      setPricing(null);
-      setError('');
-      return false;
-    }
-
-    if (!start || !end) {
-      setError('Please complete all date and time selections.');
-      setPricing(null);
-      return false;
-    }
-
-    try {
-      const result = calculateRentalPrice(
-        { rentalPricePerDay: product.rentalPricePerDay, depositAmount: product.depositAmount, stockQty: product.stockQty },
-        start,
-        end,
-        quantity as number
-      );
-      setPricing(result);
-      setError('');
-      return true;
-    } catch (err: unknown) {
-      setError((err instanceof Error ? err.message : String(err)) || 'Invalid selection');
-      setPricing(null);
-      return false;
-    }
-  };
-
-  useEffect(() => {
-    validate(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, startTime, endDate, endTime, quantity, product]);
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const isValid = validate(true);
-    if (!isValid || quantity === '') return;
-
-    const start = getCombinedDateTime(startDate, startTime)!;
-    const end = getCombinedDateTime(endDate, endTime)!;
+    if (!pricing || error || quantity === '' || !start || !end) return;
 
     addToCart({
       product,
       startDate: start.toISOString(),
       endDate: end.toISOString(),
       quantity: quantity as number,
-      days: pricing!.days, // This now actually means billable days based on hourly calculation
-      rentalTotal: pricing!.rentalTotal,
-      depositTotal: pricing!.depositTotal,
+      days: pricing.days, // This now actually means billable days based on hourly calculation
+      rentalTotal: pricing.rentalTotal,
+      depositTotal: pricing.depositTotal,
     });
     
     router.push('/cart');
@@ -124,7 +99,6 @@ export default function AddToCartForm({ product }: { product: Product }) {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                onBlur={() => validate(true)}
                 required
               />
             </div>
@@ -134,7 +108,6 @@ export default function AddToCartForm({ product }: { product: Product }) {
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                onBlur={() => validate(true)}
                 required
               />
             </div>
@@ -144,7 +117,6 @@ export default function AddToCartForm({ product }: { product: Product }) {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                onBlur={() => validate(true)}
                 required
               />
             </div>
@@ -154,7 +126,6 @@ export default function AddToCartForm({ product }: { product: Product }) {
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                onBlur={() => validate(true)}
                 required
               />
             </div>

@@ -16,13 +16,16 @@ export default function AnimatedCounter({
   formatSuffix = '' 
 }: AnimatedCounterProps) {
   const [count, setCount] = useState(0);
+  const [prevValue, setPrevValue] = useState(value);
   const startTime = useRef<number | null>(null);
   
-  useEffect(() => {
-    // Reset if value changes
+  if (value !== prevValue) {
     setCount(0);
+    setPrevValue(value);
+  }
+  
+  useEffect(() => {
     startTime.current = null;
-    
     let animationFrameId: number;
     
     const animate = (timestamp: number) => {

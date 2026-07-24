@@ -22,45 +22,87 @@ export async function processCheckout(
 ): Promise<string[]> {
   const createdOrderIds: string[] = [];
 
+  // Idempotency: check if an identical cart was processed for this user within the last 30 seconds
   const recentCutoff = subSeconds(new Date(), 30);
-  const productIds = items.map(i => i.productId);
-  const recentPaidOrders = await prisma.rentalOrder.findMany({
+  const recentOrders = await prisma.rentalOrder.findMany({
     where: {
       customerId: userId,
-      productId: { in: productIds },
       state: OrderState.Paid,
       quotationType,
       createdAt: { gte: recentCutoff },
     },
+    orderBy: { createdAt: 'desc' },
   });
-  if (recentPaidOrders.length > 0) {
-    return recentPaidOrders.map(o => o.id);
+
+  if (recentOrders.length > 0) {
+    // Group recent orders by time proximity (created within 2 seconds of each other) to identify unique checkout transactions
+    const checkoutGroups: any[][] = [];
+    const sortedRecent = [...recentOrders].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    for (const order of sortedRecent) {
+      let added = false;
+      for (const group of checkoutGroups) {
+        if (Math.abs(order.createdAt.getTime() - group[0].createdAt.getTime()) < 2000) {
+          group.push(order);
+          added = true;
+          break;
+        }
+      }
+      if (!added) {
+        checkoutGroups.push([order]);
+      }
+    }
+
+    const normalizedCartSignature = items
+      .map(i => `${i.productId}|${new Date(i.startDate).toISOString()}|${new Date(i.endDate).toISOString()}|${i.quantity}`)
+      .sort()
+      .join(';;');
+
+    for (const group of checkoutGroups) {
+      if (group.length === items.length) {
+        const recentSignature = group
+          .map(o => `${o.productId}|${o.startDate.toISOString()}|${o.endDate.toISOString()}|${o.quantity}`)
+          .sort()
+          .join(';;');
+        if (recentSignature === normalizedCartSignature) {
+          return group.map(o => o.id);
+        }
+      }
+    }
   }
 
-  const requestedStock: Record<string, number> = {};
-  for (const item of items) {
-    requestedStock[item.productId] = (requestedStock[item.productId] || 0) + item.quantity;
-  }
-
+  const productIds = [...new Set(items.map(i => i.productId))];
   const products = await prisma.product.findMany({
-    where: { id: { in: Object.keys(requestedStock) } },
+    where: { id: { in: productIds } },
   });
   const productMap = new Map<string, Product>(products.map((p: Product) => [p.id, p]));
 
-  // Availability Engine
+  // Availability Engine — group requested quantities by (productId + startDate + endDate) to avoid false-positive sum of non-overlapping bookings
+  const groupedRequested: Record<string, { productId: string, startDate: Date, endDate: Date, quantity: number }> = {};
   for (const item of items) {
-    const product = productMap.get(item.productId);
-    if (!product) throw new Error(`Product not found: ${item.productId}`);
+    const startIso = new Date(item.startDate).toISOString();
+    const endIso = new Date(item.endDate).toISOString();
+    const key = `${item.productId}_${startIso}_${endIso}`;
+    if (!groupedRequested[key]) {
+      groupedRequested[key] = {
+        productId: item.productId,
+        startDate: new Date(item.startDate),
+        endDate: new Date(item.endDate),
+        quantity: 0
+      };
+    }
+    groupedRequested[key].quantity += item.quantity;
+  }
+
+  const now = new Date();
+  for (const group of Object.values(groupedRequested)) {
+    const product = productMap.get(group.productId);
+    if (!product) throw new Error(`Product not found: ${group.productId}`);
     if (!product.isActive) throw new Error(`Product is currently inactive: ${product.name}`);
 
-    const start = new Date(item.startDate);
-    const end = new Date(item.endDate);
-    const now = new Date();
-
-    if (start < now) {
+    if (group.startDate < now) {
       throw new Error(`Start time cannot be in the past for ${product.name}`);
     }
-    if (end <= start) {
+    if (group.endDate <= group.startDate) {
       throw new Error(`End time must be after start time for ${product.name}`);
     }
 
@@ -70,16 +112,16 @@ export async function processCheckout(
         state: {
           in: [OrderState.Confirmed, OrderState.Paid, OrderState.PickedUp, OrderState.Active]
         },
-        startDate: { lt: end },
-        endDate: { gt: start },
+        startDate: { lt: group.endDate },
+        endDate: { gt: group.startDate },
       }
     });
 
     const reservedQuantity = overlappingOrders.reduce((sum, order) => sum + order.quantity, 0);
     const availableStock = product.stockQty - reservedQuantity;
 
-    if (requestedStock[item.productId] > availableStock) {
-      throw new Error(`Insufficient availability for ${product.name}. Requested: ${requestedStock[item.productId]}, Available for these dates: ${availableStock}`);
+    if (group.quantity > availableStock) {
+      throw new Error(`Insufficient availability for ${product.name}. Requested: ${group.quantity}, Available for these dates: ${availableStock}`);
     }
   }
 
